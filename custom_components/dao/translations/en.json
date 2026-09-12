@@ -1,0 +1,111 @@
+{
+  "title": "DAO",
+  "config": {
+    "step": {
+      "dao": {
+        "title": "Set up DAO",
+        "description": "Open this link in a desktop browser and sign in at DAO: {authorize_url}\n\nA desktop browser may not open the final daoapp:// redirect. That is expected. Copy its complete URL from the address bar and paste it below. See the [step-by-step instructions]({docs_url}). Home Assistant never receives your password.",
+        "data": {
+          "redirect_url": "Redirect URL"
+        }
+      },
+      "reauth_confirm": {
+        "title": "DAO sign-in expired",
+        "description": "DAO no longer accepts the saved session. Open this link, sign in again and paste the redirect URL from your browser: {authorize_url}\n\nSee the [step-by-step instructions]({docs_url}).",
+        "data": {
+          "redirect_url": "Redirect URL"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "DAO rejected these credentials.",
+      "cannot_connect": "Could not reach DAO. Please try again.",
+      "paste_full_url": "DAO could not find a code or state in that text — paste the whole address-bar URL after signing in, not just the code."
+    },
+    "abort": {
+      "already_configured": "That DAO account is already set up.",
+      "reauth_successful": "DAO was reauthenticated successfully.",
+      "wrong_account": "Those credentials are for a different DAO account. Sign in with the account this entry was set up for."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "DAO options",
+        "sections": {
+          "delivered": {
+            "name": "Delivered parcels",
+            "data": {
+              "delivered_filter_type": "Filter by",
+              "delivered_filter_amount": "Amount"
+            },
+            "data_description": {
+              "delivered_filter_type": "Show delivered parcels from the last X days, or limit to the X most recent.",
+              "delivered_filter_amount": "Number of days or parcels to show."
+            }
+          },
+          "history": {
+            "name": "Parcel history",
+            "data": {
+              "include_history": "Include status history"
+            },
+            "data_description": {
+              "include_history": "Add a per-parcel history attribute listing each status update (timestamp, status, original text). Off by default."
+            }
+          }
+        }
+      }
+    }
+  },
+  "selector": {
+    "delivered_filter_type": {
+      "options": {
+        "days": "Days",
+        "parcels": "Number of parcels"
+      }
+    }
+  },
+  "device_automation": {
+    "trigger_type": {
+      "parcel_registered": "A parcel was registered",
+      "parcel_status_changed": "A parcel's status changed",
+      "parcel_delivered": "A parcel was delivered",
+      "parcel_delivery_time_changed": "A parcel's expected delivery time changed"
+    }
+  },
+  "entity": {
+    "button": {
+      "refresh": {
+        "name": "Refresh"
+      }
+    },
+    "calendar": {
+      "deliveries": {
+        "name": "Deliveries"
+      }
+    },
+    "sensor": {
+      "incoming_parcels": {
+        "name": "Incoming parcels",
+        "unit_of_measurement": "parcels"
+      },
+      "next_delivery": {
+        "name": "Next delivery"
+      },
+      "awaiting_pickup": {
+        "name": "Awaiting pickup",
+        "unit_of_measurement": "parcels"
+      },
+      "delivered_parcels": {
+        "name": "Delivered parcels",
+        "unit_of_measurement": "parcels"
+      },
+      "last_update": {
+        "name": "Last successful update"
+      },
+      "parcel": {
+        "name": "Parcel {barcode}"
+      }
+    }
+  }
+}

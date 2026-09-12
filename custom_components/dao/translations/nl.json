@@ -1,0 +1,111 @@
+{
+  "title": "DAO",
+  "config": {
+    "step": {
+      "dao": {
+        "title": "DAO instellen",
+        "description": "Open deze link in een desktopbrowser en log in bij DAO: {authorize_url}\n\nEen desktopbrowser opent de uiteindelijke daoapp://-omleiding mogelijk niet. Dat is normaal. Kopieer de volledige URL uit de adresbalk en plak hem hieronder. Zie de [stapsgewijze uitleg]({docs_url}). Home Assistant ontvangt nooit je wachtwoord.",
+        "data": {
+          "redirect_url": "Omleidings-URL"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Aanmelding bij DAO verlopen",
+        "description": "DAO accepteert de opgeslagen sessie niet meer. Open deze link, log opnieuw in en plak de omleidings-URL uit je browser: {authorize_url}\n\nZie de [stapsgewijze uitleg]({docs_url}).",
+        "data": {
+          "redirect_url": "Redirect-URL of autorisatiecode"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "DAO heeft deze inloggegevens geweigerd.",
+      "cannot_connect": "Kon DAO niet bereiken. Probeer het opnieuw.",
+      "paste_full_url": "DAO kon geen code of state in die tekst vinden — plak de volledige adresbalk-URL na het inloggen, niet alleen de code."
+    },
+    "abort": {
+      "already_configured": "Dat DAO-account is al ingesteld.",
+      "reauth_successful": "DAO is opnieuw geverifieerd.",
+      "wrong_account": "Deze gegevens horen bij een ander DAO-account. Meld je aan met het account waarvoor deze integratie is ingesteld."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "DAO-opties",
+        "sections": {
+          "delivered": {
+            "name": "Bezorgde pakketten",
+            "data": {
+              "delivered_filter_type": "Filteren op",
+              "delivered_filter_amount": "Aantal"
+            },
+            "data_description": {
+              "delivered_filter_type": "Toon bezorgde pakketten van de laatste X dagen, of beperk tot de X meest recente.",
+              "delivered_filter_amount": "Aantal dagen of pakketten om te tonen."
+            }
+          },
+          "history": {
+            "name": "Pakketgeschiedenis",
+            "data": {
+              "include_history": "Statusgeschiedenis toevoegen"
+            },
+            "data_description": {
+              "include_history": "Voegt per pakket een geschiedenisattribuut toe met elke statusupdate (tijdstip, status, oorspronkelijke tekst). Standaard uit."
+            }
+          }
+        }
+      }
+    }
+  },
+  "selector": {
+    "delivered_filter_type": {
+      "options": {
+        "days": "Dagen",
+        "parcels": "Aantal pakketten"
+      }
+    }
+  },
+  "device_automation": {
+    "trigger_type": {
+      "parcel_registered": "Een pakket is geregistreerd",
+      "parcel_status_changed": "De status van een pakket is gewijzigd",
+      "parcel_delivered": "Een pakket is bezorgd",
+      "parcel_delivery_time_changed": "De verwachte bezorgtijd van een pakket is gewijzigd"
+    }
+  },
+  "entity": {
+    "button": {
+      "refresh": {
+        "name": "Verversen"
+      }
+    },
+    "calendar": {
+      "deliveries": {
+        "name": "Bezorgingen"
+      }
+    },
+    "sensor": {
+      "incoming_parcels": {
+        "name": "Inkomende pakketten",
+        "unit_of_measurement": "pakketten"
+      },
+      "next_delivery": {
+        "name": "Volgende bezorging"
+      },
+      "awaiting_pickup": {
+        "name": "Wachtend op afhalen",
+        "unit_of_measurement": "pakketten"
+      },
+      "delivered_parcels": {
+        "name": "Bezorgde pakketten",
+        "unit_of_measurement": "pakketten"
+      },
+      "last_update": {
+        "name": "Laatste succesvolle update"
+      },
+      "parcel": {
+        "name": "Pakket {barcode}"
+      }
+    }
+  }
+}
