@@ -164,9 +164,8 @@ decisions. Changes apply without a restart. Two models, **do not mix them**:
 There is no user-facing polling interval — this is a deliberate suite-wide
 choice, not a gap. `coordinator.py`'s `_hottest_tier_minutes` /
 `_next_update_interval` recompute `update_interval` at the end of every
-refresh. Full algorithm and reasoning: `carrier-research/dynamic-polling.md`;
-`dao/coordinator.py` is the canonical implementation every carrier
-mirrors.
+refresh. Full algorithm and reasoning:
+[`ha-carrier-template/scaffold/CLAUDE.md`](https://github.com/ha-parcel-integrations/ha-carrier-template/blob/main/scaffold/CLAUDE.md).
 
 - **Quiet window:** no polling 00:00–06:00 local time, except two daily
   anchors (~00:00 and ~06:00) for overnight / end-of-day catch-up.
