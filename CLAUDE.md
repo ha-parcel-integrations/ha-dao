@@ -96,16 +96,28 @@ the entry, so pasting a different DAO account's login aborts with
 someone else's parcels.
 
 **Status mapping (`parcels.py`).** `_STATUS_MAP` covers DAO's confirmed
-six-value `statusType` enum. `STATUS_OK` is not in that map — it splits on
-`delivery.pickupPointId` into `delivered` (unset) or `at_pickup_point` (set),
-an ASSUMED split (never checked against a real parcel's event timeline) that
-fires a one-shot `WARNING` the first time either branch is exercised
-(`parcels._warn_assumed_ok_split`), not just a comment. `out_for_delivery` is
-unreachable: no field in the consumed shape expresses it, and none is
-invented. `lastEvent.status.statusCode` has no known table at all — it is
-carried through untranslated as `raw_status`, and every distinct value seen
-logs its own one-shot warning (`parcels._warn_unmapped_status_code`), since
-none of it is safe to assume mapped.
+six-value `statusType` enum. `STATUS_OK` is not in that map — it first checks
+`_STATUS_OK_CONFIRMED_CODES` (a real `statusCode` → `ParcelStatus` override),
+and only falls back to splitting on `delivery.pickupPointId` into `delivered`
+(unset) or `at_pickup_point` (set) — an ASSUMED split (never checked against
+a real parcel's event timeline for anything but code 51) that fires a
+one-shot `WARNING` the first time either branch is exercised
+(`parcels._warn_assumed_ok_split`), not just a comment. **Code 51 is
+confirmed `delivered`**, even with a `pickupPointId` set (issue #7,
+2026-09-17): a real parcel collected from a pickup point reported
+`statusCode: 51`, `statusText: "Pakken er udleveret"` ("handed over") — the
+presence of a pickup point alone does not mean "still waiting there", it can
+also mean "was delivered via one". Add further confirmed codes to that dict
+as real parcels report them; never widen the assumption itself on a guess.
+`out_for_delivery` is unreachable: no field in the consumed shape expresses
+it, and none is invented. `lastEvent.status.statusCode` has no known table
+beyond `_STATUS_OK_CONFIRMED_CODES` — every distinct value seen logs its own
+one-shot warning (`parcels._warn_unmapped_status_code`), since none of it is
+safe to assume mapped. `raw_status` is `statusText` (the carrier's own
+human-readable text), falling back to the bare `statusCode` only when no
+text is present — matching the rest of the suite (issue #7 also caught this:
+it used to carry the bare code even though `statusText` was always present,
+which broke a third-party card expecting a string).
 
 **Fields that are `None` on purpose** (must agree with `const.py`'s
 `CAPABILITIES`): `weight` and `dimensions` are confirmed absent from every
@@ -137,6 +149,25 @@ split above.
 the mapping above can reach `ParcelStatus.AT_PICKUP_POINT`; its unique id is
 in `sensor.py`'s stale-entity sweep exclusion set, same as the other summary
 sensors.
+
+**Incoming and outgoing come from the same inbox call.** `api.py`'s
+`async_get_parcels()` already fetches and combines both `bound: "IN"` and
+`bound: "OUT"` in one list (two requests, one per bound, merged before
+returning) — `coordinator.py` splits that one fetched list into
+`data`/`delivered` (incoming) and `outgoing`/`delivered_outgoing` via
+`parcels.parcel_direction()`, the same one-coordinator-splits-one-list shape
+as `ha-posten-bring`'s `direction` field. Before this split existed (fixed
+alongside the `STATUS_OK`/`raw_status` issues above, issue #7), an outgoing
+parcel was silently counted and listed as incoming — `bound` was fetched and
+used only to build the two API requests, never read back out of the
+response. An unrecognised `bound` value defaults to incoming with a one-shot
+warning (`parcels._warn_unmapped_bound`) rather than being dropped. Outgoing
+events are deliberately narrower than incoming's — only
+`outgoing_parcel_status_changed`/`_delivered`, no `registered`/
+`delivery_time_changed` — matching the rest of the suite's account-based
+outgoing model. The two outgoing summary sensors'
+(`DAOOutgoingParcelsSensor`/`DAOOutgoingDeliveredParcelsSensor`) unique ids
+are in `sensor.py`'s stale-entity sweep exclusion set too.
 
 **API mechanics go in your own private research notes, NOT here and not in
 a local `docs/api/`** — the endpoint(s) and what keys them, auth flow, rate

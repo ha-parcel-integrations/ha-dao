@@ -51,6 +51,8 @@ async def async_get_config_entry_diagnostics(
         "counts": {
             "incoming_active": len(coordinator.data or []),
             "delivered": len(coordinator.delivered or []),
+            "outgoing_active": len(coordinator.outgoing or []),
+            "outgoing_delivered": len(coordinator.delivered_outgoing or []),
         },
         "polling": {
             "tier_minutes": coordinator.current_tier_minutes,
@@ -63,4 +65,8 @@ async def async_get_config_entry_diagnostics(
         },
         "incoming": async_redact_data(coordinator.data or [], TO_REDACT),
         "delivered": async_redact_data(coordinator.delivered or [], TO_REDACT),
+        "outgoing": async_redact_data(coordinator.outgoing or [], TO_REDACT),
+        "outgoing_delivered": async_redact_data(
+            coordinator.delivered_outgoing or [], TO_REDACT
+        ),
     }

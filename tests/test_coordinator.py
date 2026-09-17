@@ -27,6 +27,7 @@ from .payloads import (
     SECOND_CODE,
     delivered_sample,
     in_transit_sample,
+    outgoing_sample,
     parcel,
     pickup_point_response,
     returning_sample,
@@ -91,6 +92,114 @@ async def test_expired_session_triggers_reauth(hass):
 
     with pytest.raises(ConfigEntryAuthFailed):
         await coordinator._async_update_data()
+
+
+# ---------------------------------------------------------------------------
+# outgoing (bound: "OUT") — issue #7
+# ---------------------------------------------------------------------------
+
+
+async def test_outgoing_parcel_never_appears_in_incoming(hass):
+    """A `bound: "OUT"` parcel must not be counted or listed as incoming."""
+    entry = _entry()
+    entry.add_to_hass(hass)
+    client = AsyncMock()
+    client.async_get_parcels.return_value = [in_transit_sample(), outgoing_sample()]
+    coordinator = DAOCoordinator(hass, client, entry)
+
+    data = await coordinator._async_update_data()
+
+    assert [p["barcode"] for p in data] == [ACTIVE_CODE]
+    assert [p["barcode"] for p in coordinator.outgoing] == [SECOND_CODE]
+
+
+async def test_outgoing_delivered_parcel_is_split_out_too(hass):
+    entry = _entry()
+    entry.add_to_hass(hass)
+    client = AsyncMock()
+    outgoing_delivered = delivered_sample(SECOND_CODE)
+    outgoing_delivered["bound"] = "OUT"
+    client.async_get_parcels.return_value = [outgoing_delivered]
+    coordinator = DAOCoordinator(hass, client, entry)
+
+    data = await coordinator._async_update_data()
+
+    assert data == []
+    assert coordinator.outgoing == []
+    assert [p["barcode"] for p in coordinator.delivered_outgoing] == [SECOND_CODE]
+
+
+async def test_outgoing_status_changed_fires_its_own_event(hass):
+    entry = _entry()
+    entry.add_to_hass(hass)
+    client = AsyncMock()
+    coordinator = DAOCoordinator(hass, client, entry)
+
+    events = []
+    hass.bus.async_listen(
+        f"{DOMAIN}_outgoing_parcel_status_changed", lambda e: events.append(e)
+    )
+
+    client.async_get_parcels.return_value = [outgoing_sample()]
+    await coordinator._async_update_data()  # first refresh: suppressed
+    returning_outgoing = returning_sample(SECOND_CODE)
+    returning_outgoing["bound"] = "OUT"
+    client.async_get_parcels.return_value = [returning_outgoing]
+    await coordinator._async_update_data()
+    await hass.async_block_till_done()
+
+    assert len(events) == 1
+    assert events[0].data["old_status"] == ParcelStatus.REGISTERED
+    assert events[0].data["new_status"] == ParcelStatus.RETURNING
+
+
+async def test_outgoing_delivered_fires_its_own_event_not_status_changed(hass):
+    entry = _entry()
+    entry.add_to_hass(hass)
+    client = AsyncMock()
+    coordinator = DAOCoordinator(hass, client, entry)
+
+    delivered = []
+    changed = []
+    hass.bus.async_listen(
+        f"{DOMAIN}_outgoing_parcel_delivered", lambda e: delivered.append(e)
+    )
+    hass.bus.async_listen(
+        f"{DOMAIN}_outgoing_parcel_status_changed", lambda e: changed.append(e)
+    )
+
+    client.async_get_parcels.return_value = [outgoing_sample()]
+    await coordinator._async_update_data()  # first refresh: suppressed
+    outgoing_delivered = delivered_sample(SECOND_CODE)
+    outgoing_delivered["bound"] = "OUT"
+    client.async_get_parcels.return_value = [outgoing_delivered]
+    await coordinator._async_update_data()
+    await hass.async_block_till_done()
+
+    assert changed == []
+    assert len(delivered) == 1
+    assert delivered[0].data["status"] == ParcelStatus.DELIVERED
+
+
+async def test_outgoing_never_fires_registered_or_delivery_time_changed(hass):
+    """Outgoing events are deliberately narrower than incoming's — matching
+    the rest of the suite's account-based outgoing model."""
+    entry = _entry()
+    entry.add_to_hass(hass)
+    client = AsyncMock()
+    coordinator = DAOCoordinator(hass, client, entry)
+
+    fired = []
+    for suffix in ("outgoing_parcel_registered", "outgoing_parcel_delivery_time_changed"):
+        hass.bus.async_listen(f"{DOMAIN}_{suffix}", lambda e: fired.append(e))
+
+    client.async_get_parcels.return_value = []
+    await coordinator._async_update_data()
+    client.async_get_parcels.return_value = [outgoing_sample()]
+    await coordinator._async_update_data()
+    await hass.async_block_till_done()
+
+    assert fired == []
 
 
 # ---------------------------------------------------------------------------

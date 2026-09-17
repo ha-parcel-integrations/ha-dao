@@ -1,7 +1,10 @@
 """Coordinator for the DAO parcel tracker integration.
 
-Fetching and event firing only — the parcel mapping lives in :mod:`.parcels`,
-shared verbatim with the account-less variant.
+Fetching, direction split and event firing. ``api.async_get_parcels()``
+already combines both ``bound`` values into one list (Section on API
+mechanics), so this coordinator splits that one fetched list into
+incoming/outgoing itself rather than needing two coordinators — same
+approach as ``ha-posten-bring``'s ``direction`` field.
 """
 from __future__ import annotations
 
@@ -36,7 +39,13 @@ from .const import (
     STAGGER_MINUTES,
     ParcelStatus,
 )
-from .parcels import apply_delivered_filter, normalize_parcel, sort_parcels_by_ts
+from .parcels import (
+    BOUND_OUTGOING,
+    apply_delivered_filter,
+    normalize_parcel,
+    parcel_direction,
+    sort_parcels_by_ts,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -118,10 +127,11 @@ def _next_update_interval(now: datetime, tier_minutes: int, entry_id: str) -> ti
 
 
 class DAOCoordinator(DataUpdateCoordinator[list[dict]]):
-    """Polls the account's parcel list and publishes the canonical lists.
+    """Polls the account's parcel list and publishes incoming/outgoing lists.
 
-    ``coordinator.data`` is the active (not-yet-delivered) parcels,
-    ``self.delivered`` the rest.
+    ``coordinator.data`` is active incoming parcels, ``self.delivered`` the
+    delivered incoming ones. ``self.outgoing``/``self.delivered_outgoing``
+    are the ``bound: "OUT"`` counterparts.
     """
 
     def __init__(
@@ -145,6 +155,8 @@ class DAOCoordinator(DataUpdateCoordinator[list[dict]]):
         )
         self._client = client
         self.delivered: list[dict] = []
+        self.outgoing: list[dict] = []
+        self.delivered_outgoing: list[dict] = []
         # Consecutive 429 responses, for the exponential backoff in Section 3.
         # Reset to 0 on any success.
         self._consecutive_429 = 0
@@ -159,6 +171,7 @@ class DAOCoordinator(DataUpdateCoordinator[list[dict]]):
         self._known_delivery_times: (
             dict[str, tuple[str | None, str | None]] | None
         ) = None
+        self._known_outgoing_state: dict[str, ParcelStatus] | None = None
         # Cached device id, attached to every fired event so device-trigger
         # automations can filter to this account's device.
         self._cached_device_id: str | None = None
@@ -296,8 +309,12 @@ class DAOCoordinator(DataUpdateCoordinator[list[dict]]):
         self._consecutive_429 = 0
 
         include_history = self._include_history
+        incoming_raw = [r for r in raws if parcel_direction(r) != BOUND_OUTGOING]
+        outgoing_raw = [r for r in raws if parcel_direction(r) == BOUND_OUTGOING]
+
         normalized = [
-            normalize_parcel(raw, include_history=include_history) for raw in raws
+            normalize_parcel(raw, include_history=include_history)
+            for raw in incoming_raw
         ]
         active = [parcel for parcel in normalized if not parcel["delivered"]]
         delivered = [parcel for parcel in normalized if parcel["delivered"]]
@@ -323,10 +340,31 @@ class DAOCoordinator(DataUpdateCoordinator[list[dict]]):
             if parcel.get("barcode")
         }
 
+        normalized_outgoing = [
+            normalize_parcel(raw, include_history=include_history)
+            for raw in outgoing_raw
+        ]
+        outgoing_active = [p for p in normalized_outgoing if not p["delivered"]]
+        outgoing_delivered = [p for p in normalized_outgoing if p["delivered"]]
+        self.delivered_outgoing = apply_delivered_filter(
+            sort_parcels_by_ts(outgoing_delivered, "delivered_at", descending=True),
+            self.config_entry,
+        )
+        self.outgoing = sort_parcels_by_ts(outgoing_active, "planned_from")
+        outgoing_all = self.outgoing + self.delivered_outgoing
+        self._fire_outgoing_change_events(outgoing_all)
+        self._known_outgoing_state = {
+            parcel["barcode"]: parcel["status"]
+            for parcel in outgoing_all
+            if parcel.get("barcode")
+        }
+
         self.last_success_time = datetime.now(timezone.utc)
 
         now = dt_util.now()
-        self._current_tier_minutes = _hottest_tier_minutes(normalized_active, now)
+        self._current_tier_minutes = _hottest_tier_minutes(
+            normalized_active + outgoing_active, now
+        )
         self.update_interval = _next_update_interval(
             now, self._current_tier_minutes, self.config_entry.entry_id
         )
@@ -399,5 +437,40 @@ class DAOCoordinator(DataUpdateCoordinator[list[dict]]):
                         "new_planned_from": new_from,
                         "old_planned_to": old_to,
                         "new_planned_to": new_to,
+                    },
+                )
+
+    def _fire_outgoing_change_events(self, parcels: list[dict]) -> None:
+        """Fire outgoing status-changed / delivered events.
+
+        Mirrors ``_fire_change_events`` but deliberately narrower: no
+        ``registered``/``delivery_time_changed`` for outgoing parcels,
+        matching the rest of the suite's account-based outgoing model.
+        """
+        if self._known_outgoing_state is None:
+            return
+
+        device_id = self._device_id()
+        for parcel in parcels:
+            barcode = parcel.get("barcode")
+            if not barcode or barcode not in self._known_outgoing_state:
+                continue
+            new_status = parcel["status"]
+            old_status = self._known_outgoing_state[barcode]
+            if old_status == new_status:
+                continue
+            if new_status == ParcelStatus.DELIVERED:
+                self.hass.bus.async_fire(
+                    f"{DOMAIN}_outgoing_parcel_delivered",
+                    {**parcel, "device_id": device_id},
+                )
+            else:
+                self.hass.bus.async_fire(
+                    f"{DOMAIN}_outgoing_parcel_status_changed",
+                    {
+                        **parcel,
+                        "device_id": device_id,
+                        "old_status": old_status,
+                        "new_status": new_status,
                     },
                 )

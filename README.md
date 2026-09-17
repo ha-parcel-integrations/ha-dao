@@ -45,9 +45,9 @@ Part of the [ha-parcel-integrations](https://ha-parcel-integrations.github.io/) 
 
 - Automatically discovers every parcel your DAO account tracks — nothing to add by hand
 - Per-parcel sensor with the canonical status (`registered` / `in_transit` / `at_pickup_point` / `delivered` / …), the carrier's own status text and a tracking deep-link
-- Summary sensors: incoming parcels, next delivery, awaiting pickup, recently delivered parcels
+- Summary sensors: incoming parcels, next delivery, awaiting pickup, recently delivered parcels, plus separate outgoing/outgoing-delivered sensors for parcels you sent
 - Read-only **Deliveries** calendar with the expected delivery windows
-- Events + device triggers for no-code automations (parcel registered, status changed, delivered, delivery time changed)
+- Events + device triggers for no-code automations (parcel registered, status changed, delivered, delivery time changed, plus a narrower outgoing pair)
 - Opt-in per-parcel status history
 - Manual refresh button and a diagnostic last-update sensor
 
@@ -102,9 +102,11 @@ Standard HA removal applies: **Settings → Devices & Services → DAO → ⋮ �
 | `sensor.dao_next_delivery` | Earliest expected delivery moment across all active parcels |
 | `sensor.dao_awaiting_pickup` | Parcels currently waiting for collection at a pickup point |
 | `sensor.dao_delivered_parcels` | Recently delivered parcels (see the retention option) |
+| `sensor.dao_outgoing_parcels` | Number of active parcels you sent (DAO's `bound: "OUT"`) |
+| `sensor.dao_outgoing_delivered_parcels` | Recently delivered outgoing parcels |
 | `sensor.dao_last_successful_update` | Diagnostic: when DAO was last polled successfully |
 
-A delivered parcel moves from its per-parcel sensor to the delivered sensor automatically.
+A delivered parcel moves from its per-parcel sensor to the delivered sensor automatically. Outgoing parcels (ones you sent, not received) never appear on `sensor.dao_incoming_parcels` — they are tracked separately on the two `outgoing` sensors above.
 
 ## Parcel status reference
 
@@ -132,8 +134,10 @@ The integration fires these on the event bus (also available as device triggers 
 | `dao_parcel_status_changed` | A parcel's canonical status changes (`old_status` / `new_status` in the payload), except the final hop to delivered |
 | `dao_parcel_delivered` | A parcel is delivered |
 | `dao_parcel_delivery_time_changed` | The expected delivery window changes |
+| `dao_outgoing_parcel_status_changed` | An outgoing parcel's canonical status changes, except the final hop to delivered |
+| `dao_outgoing_parcel_delivered` | An outgoing parcel is delivered |
 
-Every payload is the full normalised parcel plus the hub's `device_id`. Events are suppressed on the first refresh after start-up.
+Every payload is the full normalised parcel plus the hub's `device_id`. Events are suppressed on the first refresh after start-up. The outgoing pair is deliberately narrower than the incoming one — no `registered`/`delivery_time_changed` equivalent.
 
 ## Examples
 

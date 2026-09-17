@@ -24,15 +24,18 @@ from custom_components.dao.parcels import (
     map_event_status,
     map_parcel_status,
     normalize_parcel,
+    parcel_direction,
     parse_iso,
     sort_parcels_by_ts,
     to_iso_timestamp,
 )
 
 from .payloads import (
+    delivered_from_pickup_point_sample,
     delivered_sample,
     in_transit_sample,
     info_sample,
+    outgoing_sample,
     pending_sample,
     pickup_sample,
     problem_sample,
@@ -48,6 +51,7 @@ def _reset_one_shot_warnings():
     depend on execution order."""
     parcels_module._unmapped_statuses_logged.clear()
     parcels_module._unmapped_status_codes_logged.clear()
+    parcels_module._unmapped_bounds_logged.clear()
     parcels_module._assumed_ok_split_warned = False
     parcels_module._unverified_history_warned = False
     parcels_module._unverified_pickup_point_warned = False
@@ -74,18 +78,49 @@ def test_map_parcel_status_confirmed_members(status_type, expected):
 
 
 def test_map_parcel_status_ok_without_pickup_point_is_delivered():
-    assert map_parcel_status("STATUS_OK", None) == ParcelStatus.DELIVERED
+    assert (
+        map_parcel_status("STATUS_OK", status_code=32, pickup_point_id=None)
+        == ParcelStatus.DELIVERED
+    )
 
 
 def test_map_parcel_status_ok_with_pickup_point_is_at_pickup_point():
-    assert map_parcel_status("STATUS_OK", "PP1") == ParcelStatus.AT_PICKUP_POINT
+    assert (
+        map_parcel_status("STATUS_OK", status_code=32, pickup_point_id="PP1")
+        == ParcelStatus.AT_PICKUP_POINT
+    )
 
 
 def test_map_parcel_status_ok_warns_once_ever(caplog):
-    map_parcel_status("STATUS_OK", None)
-    map_parcel_status("STATUS_OK", "PP1")
+    map_parcel_status("STATUS_OK", status_code=32, pickup_point_id=None)
+    map_parcel_status("STATUS_OK", status_code=32, pickup_point_id="PP1")
     assert caplog.text.count("unverified assumption") == 1
     assert "issues/new" in caplog.text
+
+
+def test_map_parcel_status_ok_code_51_is_delivered_even_with_pickup_point():
+    """Confirmed by issue #7: statusCode 51 ("Pakken er udleveret" — handed
+    over) means delivered even when the parcel carries a pickupPointId —
+    presence of a pickup point alone is not "still waiting there"."""
+    assert (
+        map_parcel_status("STATUS_OK", status_code=51, pickup_point_id="PP1")
+        == ParcelStatus.DELIVERED
+    )
+
+
+def test_map_parcel_status_ok_code_51_does_not_warn(caplog):
+    """A confirmed code never falls through to the ASSUMED-split warning."""
+    map_parcel_status("STATUS_OK", status_code=51, pickup_point_id="PP1")
+    assert "unverified assumption" not in caplog.text
+
+
+def test_map_parcel_status_ok_confirmed_code_survives_non_int_status_code():
+    """A malformed/non-numeric statusCode must not crash the lookup — it
+    just misses the confirmed table and falls back to the ASSUMED split."""
+    assert (
+        map_parcel_status("STATUS_OK", status_code="not-a-number", pickup_point_id=None)
+        == ParcelStatus.DELIVERED
+    )
 
 
 def test_map_parcel_status_missing_is_unknown():
@@ -140,7 +175,7 @@ def test_to_iso_timestamp_converts_epoch_milliseconds():
 def test_build_history_orders_oldest_to_newest():
     history = build_history(delivered_sample()["events"])
     assert len(history) == 4
-    assert history[0]["raw_status"] == 1
+    assert history[0]["raw_status"] == "Announced"
     assert history[0]["status"] == ParcelStatus.REGISTERED
     assert history[-1]["status"] == ParcelStatus.DELIVERED
 
@@ -167,6 +202,15 @@ def test_build_history_keeps_unparseable_timestamp_last():
         ]
     )
     assert [entry["raw_status"] for entry in history] == [1, 48]
+
+
+def test_build_history_raw_status_prefers_status_text_over_code():
+    """`raw_status` is the carrier's own text, falling back to the bare code
+    only when no text is present — matching the rest of the suite."""
+    history = build_history(
+        [status_event("STATUS_IN_TRANSIT", "2026-04-24T10:00:00Z", 48, "In transit")]
+    )
+    assert history[0]["raw_status"] == "In transit"
 
 
 def test_build_history_applies_parent_pickup_point_id_to_status_ok():
@@ -267,7 +311,7 @@ def test_normalize_registered_parcel():
     assert parcel["sender"] == "Example Shop"
     assert parcel["receiver"] == "Jane Doe"
     assert parcel["status"] == ParcelStatus.REGISTERED
-    assert parcel["raw_status"] == 1
+    assert parcel["raw_status"] == "Announced"
     assert parcel["delivered"] is False
     assert parcel["delivered_at"] is None
     assert parcel["planned_from"] is None
@@ -313,6 +357,24 @@ def test_normalize_pickup_parcel():
     assert parcel["status"] == ParcelStatus.AT_PICKUP_POINT
     assert parcel["pickup"] is True
     assert parcel["pickup_point"] == "Example Point Central Station"
+
+
+def test_normalize_delivered_from_pickup_point_is_delivered_not_at_pickup_point():
+    """Confirmed by issue #7: a parcel handed over (statusCode 51) still
+    carries the pickupPointId it was collected from — it must read as
+    delivered, not as still waiting there."""
+    parcel = normalize_parcel(delivered_from_pickup_point_sample())
+    assert parcel["status"] == ParcelStatus.DELIVERED
+    assert parcel["delivered"] is True
+    assert parcel["pickup"] is False
+
+
+def test_normalize_outgoing_parcel_is_normalised_like_any_other():
+    """`normalize_parcel` itself does not care about direction — splitting
+    incoming/outgoing is the coordinator's job (`parcel_direction`)."""
+    parcel = normalize_parcel(outgoing_sample())
+    assert parcel["raw"]["bound"] == "OUT"
+    assert parcel["status"] == ParcelStatus.REGISTERED
 
 
 def test_normalize_pickup_point_id_without_resolved_object_is_none():
@@ -366,14 +428,44 @@ def test_normalize_keeps_raw_payload():
     assert normalize_parcel(raw)["raw"] is raw
 
 
-def test_normalize_never_maps_raw_status_from_status_code(caplog):
-    """`statusCode` has no known table — it is only ever carried through."""
+def test_normalize_raw_status_prefers_status_text():
+    """`raw_status` is DAO's own human-readable text, not the bare code —
+    matching the rest of the suite (issue #7)."""
+    parcel = normalize_parcel(registered_sample())
+    assert parcel["raw_status"] == "Announced"
+
+
+def test_normalize_raw_status_falls_back_to_status_code_without_text(caplog):
+    """No known table for `statusCode` on its own — logged and carried
+    through only when no `statusText` is present."""
     raw = registered_sample()
     raw["lastEvent"]["status"]["statusCode"] = 7654321
+    raw["lastEvent"]["status"]["statusText"] = ""
     parcel = normalize_parcel(raw)
     assert parcel["raw_status"] == 7654321
     assert parcel["status"] == ParcelStatus.REGISTERED
     assert "statusCode=7654321" in caplog.text
+
+
+# ---------------------------------------------------------------------------
+# parcel_direction
+# ---------------------------------------------------------------------------
+
+
+def test_parcel_direction_in_and_out():
+    assert parcel_direction({"bound": "IN"}) == "IN"
+    assert parcel_direction({"bound": "OUT"}) == "OUT"
+
+
+def test_parcel_direction_unrecognised_defaults_to_incoming_and_warns(caplog):
+    assert parcel_direction({"bound": "SIDEWAYS"}) == "IN"
+    assert "bound=SIDEWAYS" in caplog.text
+    assert "issues/new" in caplog.text
+
+
+def test_parcel_direction_missing_defaults_to_incoming_silently(caplog):
+    assert parcel_direction({}) == "IN"
+    assert caplog.text == ""
 
 
 # ---------------------------------------------------------------------------

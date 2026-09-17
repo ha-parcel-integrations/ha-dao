@@ -58,6 +58,8 @@ async def async_setup_entry(
         f"{entry_id}_awaiting_pickup",
         f"{entry_id}_delivered_parcels",
         f"{entry_id}_last_update",
+        f"{entry_id}_outgoing_parcels",
+        f"{entry_id}_outgoing_delivered_parcels",
     }
     for entity_entry in er.async_entries_for_config_entry(registry, entry_id):
         if (
@@ -82,6 +84,8 @@ async def async_setup_entry(
     entities.append(DAOAwaitingPickupSensor(coordinator, entry))
     entities.append(DAODeliveredParcelsSensor(coordinator, entry))
     entities.append(DAOLastUpdateSensor(coordinator, entry))
+    entities.append(DAOOutgoingParcelsSensor(coordinator, entry))
+    entities.append(DAOOutgoingDeliveredParcelsSensor(coordinator, entry))
 
     async_add_entities(entities)
 
@@ -338,3 +342,63 @@ class DAOLastUpdateSensor(
     def native_value(self) -> datetime | None:
         """Return the native value of the sensor."""
         return self.coordinator.last_success_time
+
+
+class DAOOutgoingParcelsSensor(
+    CoordinatorEntity[DAOCoordinator], SensorEntity
+):
+    """Summary sensor: count of active outgoing (``bound: "OUT"``) parcels."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "outgoing_parcels"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_attribution = ATTRIBUTION
+    _unrecorded_attributes = frozenset({"parcels"})
+
+    def __init__(
+        self, coordinator: DAOCoordinator, entry: ConfigEntry
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_outgoing_parcels"
+        self._attr_device_info = build_device_info(entry)
+
+    @property
+    def native_value(self) -> int:
+        """Return the native value of the sensor."""
+        return len(self.coordinator.outgoing)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return the extra state attributes."""
+        return {"parcels": self.coordinator.outgoing}
+
+
+class DAOOutgoingDeliveredParcelsSensor(
+    CoordinatorEntity[DAOCoordinator], SensorEntity
+):
+    """Summary sensor: count of delivered outgoing (``bound: "OUT"``) parcels."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "outgoing_delivered_parcels"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_attribution = ATTRIBUTION
+    _unrecorded_attributes = frozenset({"parcels"})
+
+    def __init__(
+        self, coordinator: DAOCoordinator, entry: ConfigEntry
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_outgoing_delivered_parcels"
+        self._attr_device_info = build_device_info(entry)
+
+    @property
+    def native_value(self) -> int:
+        """Return the native value of the sensor."""
+        return len(self.coordinator.delivered_outgoing)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return the extra state attributes."""
+        return {"parcels": self.coordinator.delivered_outgoing}

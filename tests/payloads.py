@@ -171,6 +171,32 @@ def pickup_sample(tracking_id: str = TRACKING_ID) -> dict:
     )
 
 
+def delivered_from_pickup_point_sample(tracking_id: str = TRACKING_ID) -> dict:
+    """STATUS_OK, statusCode 51, ``pickupPointId`` set — CONFIRMED "delivered"
+    (issue #7: "Pakken er udleveret" for a parcel collected from a pickup
+    point), not the ASSUMED at_pickup_point split."""
+    return parcel(
+        "STATUS_OK",
+        tracking_id=tracking_id,
+        status_code=51,
+        status_text="Pakken er udleveret",
+        pickup_point_id=PICKUP_POINT_ID,
+        pickup_point=pickup_point_response(),
+    )
+
+
+def outgoing_sample(tracking_id: str = SECOND_CODE) -> dict:
+    """``bound: "OUT"`` — a parcel the account holder sent, not received."""
+    raw = parcel(
+        "STATUS_PROCESSING",
+        tracking_id=tracking_id,
+        status_code=28,
+        status_text="Ankommet til terminal",
+    )
+    raw["bound"] = "OUT"
+    return raw
+
+
 def pending_sample() -> dict:
     """A tracked code with no lastEvent at all yet."""
     return {"trackingId": SECOND_CODE, "sender": None, "receiver": None}

@@ -40,10 +40,17 @@ async def test_diagnostics_redacts_and_counts(hass):
         }
     ]
     entry.runtime_data.coordinator.delivered = []
+    entry.runtime_data.coordinator.outgoing = []
+    entry.runtime_data.coordinator.delivered_outgoing = []
 
     result = await async_get_config_entry_diagnostics(hass, entry)
 
-    assert result["counts"] == {"incoming_active": 1, "delivered": 0}
+    assert result["counts"] == {
+        "incoming_active": 1,
+        "delivered": 0,
+        "outgoing_active": 0,
+        "outgoing_delivered": 0,
+    }
     assert result["polling"] == {
         "tier_minutes": 15,
         "update_interval_seconds": 900.0,
@@ -69,6 +76,8 @@ async def test_diagnostics_redacts_and_counts(hass):
     )
     # non-identifying fields survive, or the diagnostics would be useless
     assert result["incoming"][0]["status"] == "out_for_delivery"
+    assert result["outgoing"] == []
+    assert result["outgoing_delivered"] == []
 
 
 async def test_diagnostics_reports_suspended_polling(hass):
@@ -79,6 +88,8 @@ async def test_diagnostics_reports_suspended_polling(hass):
     entry.runtime_data.coordinator.update_interval = None
     entry.runtime_data.coordinator.data = []
     entry.runtime_data.coordinator.delivered = []
+    entry.runtime_data.coordinator.outgoing = []
+    entry.runtime_data.coordinator.delivered_outgoing = []
 
     result = await async_get_config_entry_diagnostics(hass, entry)
 
