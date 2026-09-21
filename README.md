@@ -176,7 +176,13 @@ statuses and events.
 
 ## Disclaimer
 
-This integration signs in to your DAO account using the same login DAO's own app and website use, and reads your existing parcel inbox — it never manages, subscribes to or archives shipments. It is not affiliated with, endorsed by, or supported by DAO. Your DAO password never reaches Home Assistant or this integration; only a token issued by DAO after you sign in directly with DAO is stored, and only on your own Home Assistant instance.
+This is an independent, community-built project. It is not affiliated with, endorsed by, sponsored by, or supported by DAO, Home Assistant, or any other third party referenced in this project. Please don't contact DAO for support with this integration.
+
+All third-party trademarks, trade names, product names, logos, and other brand assets are the property of their respective owners. References to them are solely to identify the relevant carrier or service and do not imply affiliation, sponsorship, or endorsement. Nothing in this project grants or implies any licence or right to use third-party brand assets.
+
+This integration may rely on public, unofficial, or undocumented carrier interfaces, accessed with your own account or API key where required. These may change or be withdrawn without notice and may be subject to DAO's terms. Data is sent only to DAO's own services or those of its group; this project operates no servers of its own. You are responsible for ensuring that your use complies with applicable law and those terms. Use is at your own risk; see the [licence](LICENSE) for warranty limitations.
+
+This integration signs in to your DAO account using the same login DAO's own app and website use, and reads your existing parcel inbox — it never manages, subscribes to or archives shipments. Your DAO password never reaches Home Assistant or this integration; only a token issued by DAO after you sign in directly with DAO is stored, and only on your own Home Assistant instance.
 
 ## Contributing
 
