@@ -95,7 +95,7 @@
         "name": "Volgende bezorging"
       },
       "awaiting_pickup": {
-        "name": "Wachtend op afhalen",
+        "name": "Klaar voor afhalen",
         "unit_of_measurement": "pakketten"
       },
       "delivered_parcels": {
