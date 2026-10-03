@@ -225,9 +225,9 @@ repo's own `CLAUDE.md` — not a generator flag.
 
 | File | Carrier-specific? |
 |---|---|
-| `api.py` (HTTP client, error types) | **yes** |
+| `api.py` (HTTP client, error types; `account/` and `tracking/` packages instead when a repo has two sources) | **yes** |
 | `const.py` (domain, URLs, `ParcelStatus`, option keys) | partly (URLs) |
-| `parcels.py` (status map, `normalize_parcel`, history, sort, filters — pure, no I/O) | partly (`_STATUS_MAP`, `normalize_parcel`) |
+| `parcels.py` (status map, `normalize_parcel`, history, sort, filters — pure, no I/O) | partly (the status map, `normalize_parcel`) |
 | `coordinator.py` (fetch, cache, event firing) | mostly not |
 | `config_flow.py` | partly (code validation) |
 | `sensor.py` / `button.py` / `calendar.py` / `device_trigger.py` | no |
