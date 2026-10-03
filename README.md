@@ -11,11 +11,8 @@ A custom Home Assistant integration that tracks your [DAO](https://send.dao.as) 
 
 Part of the [ha-parcel-integrations](https://ha-parcel-integrations.github.io/) family: it publishes the same canonical parcel format, statuses and events as the other carrier integrations, so it plugs straight into the [Parcel Aggregator](https://github.com/ha-parcel-integrations/ha-parcel-aggregator) and cross-carrier automations.
 
-> ### ⚠️ Unverified against a real parcel
->
-> This integration's status mapping and field lookups come from static
-> analysis of DAO's own app, not from a real tracked parcel — there has been
-> no live login yet. The confirmed six-value status vocabulary is mapped;
+> ⚠️ **Pre-1.0 release.** This integration's status mapping and field lookups
+> are not yet confirmed against a real tracked parcel. The confirmed six-value status vocabulary is mapped;
 > whether `at_pickup_point` vs. `delivered` is derived correctly, and every
 > `statusCode` value, are still open questions. Both surface with a one-shot
 > `WARNING` and a ready-made issue link rather than failing silently — please
