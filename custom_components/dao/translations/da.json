@@ -1,0 +1,121 @@
+{
+  "title": "DAO",
+  "config": {
+    "step": {
+      "dao": {
+        "title": "Opsæt DAO",
+        "description": "Åbn dette link i en computerbrowser, og log ind hos DAO: {authorize_url}\n\nEn computerbrowser åbner måske ikke den sidste daoapp://-omdirigering. Det er forventet. Kopiér hele URL'en fra adresselinjen, og indsæt den nedenfor. Se den [trinvise vejledning]({docs_url}). Home Assistant modtager aldrig din adgangskode.",
+        "data": {
+          "redirect_url": "Omdirigerings-URL"
+        }
+      },
+      "reauth_confirm": {
+        "title": "DAO-login er udløbet",
+        "description": "DAO accepterer ikke længere den gemte session. Åbn dette link, log ind igen, og indsæt omdirigerings-URL'en fra din browser: {authorize_url}\n\nSe den [trinvise vejledning]({docs_url}).",
+        "data": {
+          "redirect_url": "Omdirigerings-URL"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "DAO afviste disse legitimationsoplysninger.",
+      "cannot_connect": "Kunne ikke få forbindelse til DAO. Prøv igen.",
+      "paste_full_url": "DAO kunne ikke finde en kode eller state i teksten — indsæt hele URL'en fra adresselinjen efter login, ikke kun koden."
+    },
+    "abort": {
+      "already_configured": "Denne DAO-konto er allerede sat op.",
+      "reauth_successful": "DAO blev godkendt igen.",
+      "wrong_account": "Disse legitimationsoplysninger hører til en anden DAO-konto. Log ind med den konto, denne integration blev oprettet til."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "DAO-indstillinger",
+        "sections": {
+          "delivered": {
+            "name": "Leverede pakker",
+            "data": {
+              "delivered_filter_type": "Filtrer efter",
+              "delivered_filter_amount": "Antal"
+            },
+            "data_description": {
+              "delivered_filter_type": "Vis leverede pakker fra de sidste X dage, eller begræns til de X seneste.",
+              "delivered_filter_amount": "Antal dage eller pakker der skal vises."
+            }
+          },
+          "history": {
+            "name": "Pakkehistorik",
+            "data": {
+              "include_history": "Inkluder statushistorik"
+            },
+            "data_description": {
+              "include_history": "Tilføj en historikattribut pr. pakke, der viser hver statusopdatering (tidsstempel, status, originaltekst). Slået fra som standard."
+            }
+          }
+        }
+      }
+    }
+  },
+  "selector": {
+    "delivered_filter_type": {
+      "options": {
+        "days": "Dage",
+        "parcels": "Antal pakker"
+      }
+    }
+  },
+  "device_automation": {
+    "trigger_type": {
+      "parcel_registered": "En pakke blev registreret",
+      "parcel_status_changed": "En pakkes status ændrede sig",
+      "parcel_delivered": "En pakke blev leveret",
+      "parcel_delivery_time_changed": "En pakkes forventede leveringstid ændrede sig",
+      "outgoing_parcel_status_changed": "En udgående pakkes status ændrede sig",
+      "outgoing_parcel_delivered": "En udgående pakke blev leveret"
+    }
+  },
+  "entity": {
+    "button": {
+      "refresh": {
+        "name": "Opdater"
+      }
+    },
+    "calendar": {
+      "deliveries": {
+        "name": "Leveringer"
+      }
+    },
+    "sensor": {
+      "incoming_parcels": {
+        "name": "Indkommende pakker",
+        "unit_of_measurement": "pakker"
+      },
+      "next_delivery": {
+        "name": "Næste levering"
+      },
+      "awaiting_pickup": {
+        "name": "Klar til afhentning",
+        "unit_of_measurement": "pakker"
+      },
+      "delivered_parcels": {
+        "name": "Leverede pakker",
+        "unit_of_measurement": "pakker"
+      },
+      "last_update": {
+        "name": "Sidste vellykkede opdatering"
+      },
+      "parcel": {
+        "name": "Pakke {barcode}"
+      },
+      "outgoing_parcels": {
+        "name": "Udgående pakker",
+        "unit_of_measurement": "pakker"
+      },
+      "outgoing_delivered_parcels": {
+        "name": "Udgående leverede pakker",
+        "unit_of_measurement": "pakker"
+      }
+    }
+  }
+}
