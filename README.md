@@ -50,7 +50,7 @@ Part of the [ha-parcel-integrations](https://ha-parcel-integrations.github.io/) 
 
 ## Requirements
 
-- Home Assistant 2024.12 or newer
+- Home Assistant 2025.12 or newer
 - A DAO account (the same one used by the DAO app or [send.dao.as](https://send.dao.as)), reachable from a desktop browser during setup
 - Parcels only show up once DAO's own app or website links them to your account — this integration reads that inbox, it does not manage it
 
