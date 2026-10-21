@@ -60,7 +60,11 @@ A custom Home Assistant integration that tracks your [DAO](https://send.dao.as) 
 
 1. In HACS, choose the three-dot menu → **Custom repositories**.
 2. Add `https://github.com/ha-parcel-integrations/ha-dao` as an **Integration**.
-3. Install **DAO** and restart Home Assistant.
+3. Install **DAO** and restart Home Assistant if HACS asks you to.
+
+Or click the button below to open it directly in HACS:
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=ha-parcel-integrations&repository=ha-dao&category=integration)
 
 ### Manual
 
@@ -68,7 +72,9 @@ Copy `custom_components/dao` into your `config/custom_components/` folder and re
 
 ## Configuration
 
-Add the integration via **Settings → Devices & Services → Add Integration → DAO**. The flow shows a DAO sign-in link — open it in a **desktop browser** (the DAO mobile app will otherwise swallow the login redirect) and sign in. After signing in, the browser lands on an address the integration can't receive directly; copy that address bar URL back into the Home Assistant flow to finish. See [`docs/finding-the-redirect-url.md`](docs/finding-the-redirect-url.md) if you get stuck.
+[![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=dao)
+
+Or add it by hand: add the integration via **Settings → Devices & Services → Add Integration → DAO**. The flow shows a DAO sign-in link — open it in a **desktop browser** (the DAO mobile app will otherwise swallow the login redirect) and sign in. After signing in, the browser lands on an address the integration can't receive directly; copy that address bar URL back into the Home Assistant flow to finish. See [`docs/finding-the-redirect-url.md`](docs/finding-the-redirect-url.md) if you get stuck.
 
 Home Assistant never sees your DAO password — only a token issued after you've signed in with DAO directly.
 
