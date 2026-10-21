@@ -130,6 +130,8 @@ class DAOCoordinator(DataUpdateCoordinator[list[dict]]):
     are the ``bound: "OUT"`` counterparts.
     """
 
+    config_entry: ConfigEntry
+
     def __init__(
         self,
         hass: HomeAssistant,

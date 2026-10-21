@@ -95,8 +95,8 @@ class DAOConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
         if user_input is not None:
             client, error = await self._exchange(user_input["redirect_url"])
-            if error:
-                errors["base"] = error
+            if client is None or client.refresh_token is None:
+                errors["base"] = error or "cannot_connect"
             else:
                 await self.async_set_unique_id(
                     client.account_subject or f"dao:{client.refresh_token[-12:]}"
