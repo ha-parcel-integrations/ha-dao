@@ -1,4 +1,5 @@
 """Constants for the DAO parcel tracker integration."""
+
 from enum import StrEnum
 
 from homeassistant.const import Platform
@@ -16,14 +17,14 @@ class ParcelStatus(StrEnum):
     roughly the order a parcel moves through.
     """
 
-    REGISTERED = "registered"               # Sender announced the parcel; not handed over yet
-    IN_TRANSIT = "in_transit"               # In the carrier's network
-    OUT_FOR_DELIVERY = "out_for_delivery"   # On a delivery vehicle today
-    AT_PICKUP_POINT = "at_pickup_point"     # Ready to collect at a pickup location
-    DELIVERED = "delivered"                 # Handed over
-    RETURNING = "returning"                 # Failed delivery, going back to sender
-    PROBLEM = "problem"                     # Carrier reports an exception/issue
-    UNKNOWN = "unknown"                     # Raw status we have not mapped yet
+    REGISTERED = "registered"  # Sender announced the parcel; not handed over yet
+    IN_TRANSIT = "in_transit"  # In the carrier's network
+    OUT_FOR_DELIVERY = "out_for_delivery"  # On a delivery vehicle today
+    AT_PICKUP_POINT = "at_pickup_point"  # Ready to collect at a pickup location
+    DELIVERED = "delivered"  # Handed over
+    RETURNING = "returning"  # Failed delivery, going back to sender
+    PROBLEM = "problem"  # Carrier reports an exception/issue
+    UNKNOWN = "unknown"  # Raw status we have not mapped yet
 
 
 PLATFORMS = [Platform.BUTTON, Platform.CALENDAR, Platform.SENSOR]
@@ -78,7 +79,9 @@ CONF_REFRESH_TOKEN = "refresh_token"
 CONF_ACCOUNT_SUBJECT = "account_subject"
 DAO_CLIENT_ID = "dao-app"
 DAO_REDIRECT_URI = "daoapp://auth-callback"
-DAO_AUTHORIZATION_URL = "https://auth.dao.as/realms/consumers/protocol/openid-connect/auth"
+DAO_AUTHORIZATION_URL = (
+    "https://auth.dao.as/realms/consumers/protocol/openid-connect/auth"
+)
 DAO_TOKEN_URL = "https://auth.dao.as/realms/consumers/protocol/openid-connect/token"
 DAO_TRACKING_URL = "https://apiv2.dao.as/consumer/shipment/tracking/v1/tracking"
 DAO_PICKUP_POINT_URL = (

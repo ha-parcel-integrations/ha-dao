@@ -6,12 +6,13 @@ mechanics), so this coordinator splits that one fetched list into
 incoming/outgoing itself rather than needing two coordinators — same
 approach as ``ha-posten-bring``'s ``direction`` field.
 """
+
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime, timedelta
 import hashlib
 import logging
-from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import aiohttp
@@ -22,11 +23,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
-from .api import (
-    DAOApiClient,
-    DAOApiError,
-    DAOAuthError,
-)
+from .api import DAOApiClient, DAOApiError, DAOAuthError
 from .const import (
     CONF_INCLUDE_HISTORY,
     DEFAULT_INCLUDE_HISTORY,
@@ -79,10 +76,9 @@ def _next_anchor(now: datetime) -> datetime:
     )
     if now < six_today:
         return six_today
-    midnight_tomorrow = (now + timedelta(days=1)).replace(
+    return (now + timedelta(days=1)).replace(
         hour=QUIET_WINDOW_START_HOUR, minute=0, second=0, microsecond=0
     )
-    return midnight_tomorrow
 
 
 def _hottest_tier_minutes(active_parcels: list[dict], now: datetime) -> int:
@@ -168,9 +164,9 @@ class DAOCoordinator(DataUpdateCoordinator[list[dict]]):
         # that already existed when the integration started — otherwise every
         # restart would flood users with "registered" notifications.
         self._known_state: dict[str, ParcelStatus] | None = None
-        self._known_delivery_times: (
-            dict[str, tuple[str | None, str | None]] | None
-        ) = None
+        self._known_delivery_times: dict[str, tuple[str | None, str | None]] | None = (
+            None
+        )
         self._known_outgoing_state: dict[str, ParcelStatus] | None = None
         # Cached device id, attached to every fired event so device-trigger
         # automations can filter to this account's device.
@@ -213,9 +209,7 @@ class DAOCoordinator(DataUpdateCoordinator[list[dict]]):
     def _include_history(self) -> bool:
         """Whether the opt-in per-parcel history option is enabled."""
         return bool(
-            self.config_entry.options.get(
-                CONF_INCLUDE_HISTORY, DEFAULT_INCLUDE_HISTORY
-            )
+            self.config_entry.options.get(CONF_INCLUDE_HISTORY, DEFAULT_INCLUDE_HISTORY)
         )
 
     async def _enrich_parcel(self, raw: dict[str, Any]) -> dict[str, Any]:
@@ -359,7 +353,7 @@ class DAOCoordinator(DataUpdateCoordinator[list[dict]]):
             if parcel.get("barcode")
         }
 
-        self.last_success_time = datetime.now(timezone.utc)
+        self.last_success_time = datetime.now(UTC)
 
         now = dt_util.now()
         self._current_tier_minutes = _hottest_tier_minutes(

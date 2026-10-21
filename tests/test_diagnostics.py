@@ -1,10 +1,9 @@
 """Tests for DAO diagnostics."""
+
 from datetime import timedelta
 from unittest.mock import MagicMock
 
-from custom_components.dao.diagnostics import (
-    async_get_config_entry_diagnostics,
-)
+from custom_components.dao.diagnostics import async_get_config_entry_diagnostics
 
 
 async def test_diagnostics_redacts_and_counts(hass):
@@ -71,9 +70,7 @@ async def test_diagnostics_redacts_and_counts(hass):
     assert result["incoming"][0]["raw"]["houseNumber"] == "**REDACTED**"
     assert result["incoming"][0]["raw"]["zipCode"] == "**REDACTED**"
     assert result["incoming"][0]["raw"]["city"] == "**REDACTED**"
-    assert (
-        result["incoming"][0]["raw"]["pickupPoint"]["coordinates"] == "**REDACTED**"
-    )
+    assert result["incoming"][0]["raw"]["pickupPoint"]["coordinates"] == "**REDACTED**"
     # non-identifying fields survive, or the diagnostics would be useless
     assert result["incoming"][0]["status"] == "out_for_delivery"
     assert result["outgoing"] == []

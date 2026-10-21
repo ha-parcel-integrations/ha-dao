@@ -1,6 +1,8 @@
 """Tests for the DAO API client: PKCE, the token exchange/refresh, and the
 bearer-authenticated tracking calls."""
+
 import base64
+from datetime import UTC, datetime, timedelta
 import hashlib
 import json
 from unittest.mock import AsyncMock, MagicMock
@@ -32,7 +34,9 @@ def _fake_id_token(sub: str) -> str:
     return f"{header}.{payload}.sig"
 
 
-def _response(status: int, body: object = None, headers: dict | None = None) -> AsyncMock:
+def _response(
+    status: int, body: object = None, headers: dict | None = None
+) -> AsyncMock:
     response = AsyncMock()
     response.status = status
     response.headers = headers or {}
@@ -60,17 +64,17 @@ def _session(*, post: list | None = None, get: list | None = None) -> MagicMock:
     return session
 
 
-def _client(session: MagicMock, refresh_token: str | None = REFRESH_TOKEN) -> DAOApiClient:
+def _client(
+    session: MagicMock, refresh_token: str | None = REFRESH_TOKEN
+) -> DAOApiClient:
     return DAOApiClient(session, refresh_token)
 
 
 def _authenticated_client(session: MagicMock) -> DAOApiClient:
     """A client whose access token is already fresh, so async_refresh() is a no-op."""
-    from datetime import datetime, timedelta, timezone
-
     client = _client(session)
     client.access_token = "at-0"
-    client._expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+    client._expires_at = datetime.now(UTC) + timedelta(hours=1)
     return client
 
 
@@ -88,7 +92,7 @@ TOKEN_BODY = {
 
 
 @pytest.mark.parametrize(
-    "hass_language,expected",
+    ("hass_language", "expected"),
     [
         ("da", "da"),
         ("da-DK", "da"),
@@ -277,7 +281,12 @@ async def test_refresh_raises_api_error_on_outage():
 
 
 async def test_get_parcels_combines_in_and_out_bound():
-    session = _session(get=[_response(200, {"items": [{"a": 1}]}), _response(200, {"items": [{"b": 2}]})])
+    session = _session(
+        get=[
+            _response(200, {"items": [{"a": 1}]}),
+            _response(200, {"items": [{"b": 2}]}),
+        ]
+    )
     client = _authenticated_client(session)
 
     parcels = await client.async_get_parcels()
@@ -291,12 +300,12 @@ async def test_get_parcels_combines_in_and_out_bound():
 
 
 async def test_get_parcels_sends_the_configured_language():
-    from datetime import datetime, timedelta, timezone
-
-    session = _session(get=[_response(200, {"items": []}), _response(200, {"items": []})])
+    session = _session(
+        get=[_response(200, {"items": []}), _response(200, {"items": []})]
+    )
     client = DAOApiClient(session, REFRESH_TOKEN, language="da")
     client.access_token = "at-0"
-    client._expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+    client._expires_at = datetime.now(UTC) + timedelta(hours=1)
 
     await client.async_get_parcels()
 
@@ -339,7 +348,10 @@ async def test_get_parcels_accepts_every_known_envelope_shape(body):
 
 async def test_get_parcels_skips_non_dict_entries():
     session = _session(
-        get=[_response(200, {"items": [{"trackingId": "A"}, "junk"]}), _response(200, {"items": []})]
+        get=[
+            _response(200, {"items": [{"trackingId": "A"}, "junk"]}),
+            _response(200, {"items": []}),
+        ]
     )
     client = _authenticated_client(session)
 

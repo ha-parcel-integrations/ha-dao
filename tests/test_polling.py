@@ -5,11 +5,12 @@ Pure-function tests for the tiering/scheduling helpers, plus a few
 integration checks that ``_async_update_data`` wires them up: the account
 never fully stops, and a 429 triggers the Section 3 backoff.
 """
-from datetime import datetime, timedelta, timezone
+
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
 
-import pytest
 from homeassistant.helpers.update_coordinator import UpdateFailed
+import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.dao.api import DAOApiError
@@ -34,7 +35,6 @@ from custom_components.dao.coordinator import (
 
 from .payloads import in_transit_sample
 
-UTC = timezone.utc
 SUBJECT = "subject-1"
 
 
@@ -88,7 +88,10 @@ def test_stagger_is_stable_and_bounded():
 
 
 def test_tier_is_mid_when_nothing_active():
-    assert _hottest_tier_minutes([], datetime(2026, 1, 1, 12, tzinfo=UTC)) == MID_INTERVAL_MINUTES
+    assert (
+        _hottest_tier_minutes([], datetime(2026, 1, 1, 12, tzinfo=UTC))
+        == MID_INTERVAL_MINUTES
+    )
 
 
 def test_tier_is_mid_for_non_hot_statuses():
@@ -224,9 +227,7 @@ async def test_non_429_api_error_still_propagates(hass):
     entry = _entry()
     entry.add_to_hass(hass)
     client = AsyncMock()
-    client.async_get_parcels.side_effect = DAOApiError(
-        "HTTP 500", status_code=500
-    )
+    client.async_get_parcels.side_effect = DAOApiError("HTTP 500", status_code=500)
     coordinator = DAOCoordinator(hass, client, entry)
 
     with pytest.raises(DAOApiError):

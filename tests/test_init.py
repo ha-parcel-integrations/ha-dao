@@ -1,16 +1,14 @@
 """Tests for DAO setup and unload."""
+
 from unittest.mock import AsyncMock, patch
 
 import aiohttp
-import pytest
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.helpers import entity_registry as er
+import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.dao.api import (
-    DAOApiError,
-    DAOAuthError,
-)
+from custom_components.dao.api import DAOApiError, DAOAuthError
 from custom_components.dao.const import CONF_ACCOUNT_SUBJECT, CONF_REFRESH_TOKEN, DOMAIN
 
 from .payloads import ACTIVE_CODE, SECOND_CODE, in_transit_sample

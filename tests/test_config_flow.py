@@ -1,12 +1,13 @@
 """Tests for the DAO config and options flow: the manual authorization-code
 paste, state verification, reauth's account-mismatch guard, and options."""
+
 import base64
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import aiohttp
-import pytest
 from homeassistant.config_entries import SOURCE_USER
+import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.dao.const import (
@@ -60,7 +61,7 @@ def _token_session(status: int, body: object) -> MagicMock:
     return session
 
 
-def _token_body(sub: str = "subject-1", refresh_token: str = "rt-1") -> dict:
+def _token_body(sub: str = "subject-1", refresh_token: str = "rt-1") -> dict:  # noqa: S107 - test fixture value
     return {
         "access_token": "at-1",
         "refresh_token": refresh_token,
@@ -69,7 +70,7 @@ def _token_body(sub: str = "subject-1", refresh_token: str = "rt-1") -> dict:
     }
 
 
-def _entry(subject: str = "subject-1", refresh_token: str = "rt-0") -> MockConfigEntry:
+def _entry(subject: str = "subject-1", refresh_token: str = "rt-0") -> MockConfigEntry:  # noqa: S107 - test fixture value
     return MockConfigEntry(
         domain=DOMAIN,
         title="DAO",
@@ -172,14 +173,15 @@ async def test_user_flow_rejects_a_url_without_a_code(hass):
         )
 
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {"redirect_url": f"daoapp://auth-callback?state={FIXED_STATE}"}
+        result["flow_id"],
+        {"redirect_url": f"daoapp://auth-callback?state={FIXED_STATE}"},
     )
 
     assert result["errors"] == {"base": "invalid_redirect"}
 
 
 @pytest.mark.parametrize(
-    "body,expected",
+    ("body", "expected"),
     [
         ({"error": "invalid_grant"}, "invalid_auth"),
         ({}, "cannot_connect"),
@@ -326,9 +328,7 @@ async def test_options_flow_saves_and_reloads(hass):
     result = await hass.config_entries.options.async_init(entry.entry_id)
     assert result["step_id"] == "init"
 
-    with patch.object(
-        hass.config_entries, "async_schedule_reload"
-    ) as schedule_reload:
+    with patch.object(hass.config_entries, "async_schedule_reload") as schedule_reload:
         result = await hass.config_entries.options.async_configure(
             result["flow_id"],
             {

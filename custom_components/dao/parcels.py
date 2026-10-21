@@ -5,10 +5,11 @@ is the carrier-specific status mapping and canonical-shape logic, kept apart
 from the coordinator (fetching, caching, events) so it stays trivially
 unit-testable without spinning up HA.
 """
+
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 import logging
-from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -133,11 +134,13 @@ def _warn_assumed_ok_split(pickup_point_id: Any) -> None:
     only the pickup-point one, so a "delivered" mis-mapping gets reported
     just as readily.
     """
-    global _assumed_ok_split_warned
+    global _assumed_ok_split_warned  # noqa: PLW0603 - one-shot warning flag; tests reset it
     if _assumed_ok_split_warned:
         return
     _assumed_ok_split_warned = True
-    resolved = ParcelStatus.AT_PICKUP_POINT if pickup_point_id else ParcelStatus.DELIVERED
+    resolved = (
+        ParcelStatus.AT_PICKUP_POINT if pickup_point_id else ParcelStatus.DELIVERED
+    )
     _LOGGER.warning(
         "DAO reported STATUS_OK, mapped to '%s' based on an unverified "
         "assumption about delivery.pickupPointId (%s). Open an issue and "
@@ -156,7 +159,7 @@ def _warn_unverified_history() -> None:
     carries events to build history from, so it lands the moment the claim
     starts mattering rather than at import time.
     """
-    global _unverified_history_warned
+    global _unverified_history_warned  # noqa: PLW0603 - one-shot warning flag; tests reset it
     if _unverified_history_warned:
         return
     _unverified_history_warned = True
@@ -176,7 +179,7 @@ def _warn_unverified_pickup_point() -> None:
     confirmed structurally from the app's own code, not from a real
     ``pickup-points/{id}`` response.
     """
-    global _unverified_pickup_point_warned
+    global _unverified_pickup_point_warned  # noqa: PLW0603 - one-shot warning flag; tests reset it
     if _unverified_pickup_point_warned:
         return
     _unverified_pickup_point_warned = True
@@ -270,11 +273,11 @@ def parse_iso(value: str | None) -> datetime | None:
     if not value:
         return None
     try:
-        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(str(value))
     except ValueError:
         return None
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
+        parsed = parsed.replace(tzinfo=UTC)
     return parsed
 
 
@@ -289,7 +292,7 @@ def to_iso_timestamp(value: Any) -> str | None:
         return None
     if isinstance(value, (int, float)):
         try:
-            return datetime.fromtimestamp(value / 1000, tz=timezone.utc).isoformat()
+            return datetime.fromtimestamp(value / 1000, tz=UTC).isoformat()
         except (OverflowError, OSError, ValueError):
             return None
     return str(value)
@@ -447,14 +450,12 @@ def apply_delivered_filter(parcels: list[dict], entry: ConfigEntry) -> list[dict
     shows.
     """
     options = entry.options
-    filter_type = options.get(
-        CONF_DELIVERED_FILTER_TYPE, DEFAULT_DELIVERED_FILTER_TYPE
-    )
+    filter_type = options.get(CONF_DELIVERED_FILTER_TYPE, DEFAULT_DELIVERED_FILTER_TYPE)
     amount = int(
         options.get(CONF_DELIVERED_FILTER_AMOUNT, DEFAULT_DELIVERED_FILTER_AMOUNT)
     )
     if filter_type == "days":
-        cutoff = datetime.now(timezone.utc) - timedelta(days=amount)
+        cutoff = datetime.now(UTC) - timedelta(days=amount)
         return [
             parcel
             for parcel in parcels

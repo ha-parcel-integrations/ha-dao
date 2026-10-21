@@ -6,6 +6,7 @@ fetched from a real DAO account**. There is still no real-parcel capture for
 this carrier; keep these payloads in one module so a future correction only
 has to happen in one place.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -107,7 +108,10 @@ def parcel(
 def registered_sample(tracking_id: str = TRACKING_ID) -> dict:
     """STATUS_PROCESSING — confirmed mapping, no ambiguity."""
     return parcel(
-        "STATUS_PROCESSING", tracking_id=tracking_id, status_code=1, status_text="Announced"
+        "STATUS_PROCESSING",
+        tracking_id=tracking_id,
+        status_code=1,
+        status_text="Announced",
     )
 
 
@@ -124,7 +128,10 @@ def in_transit_sample(tracking_id: str = TRACKING_ID) -> dict:
 def returning_sample(tracking_id: str = TRACKING_ID) -> dict:
     """STATUS_RETURN — confirmed mapping, no ambiguity."""
     return parcel(
-        "STATUS_RETURN", tracking_id=tracking_id, status_code=60, status_text="Returning"
+        "STATUS_RETURN",
+        tracking_id=tracking_id,
+        status_code=60,
+        status_text="Returning",
     )
 
 
@@ -138,7 +145,10 @@ def problem_sample(tracking_id: str = TRACKING_ID) -> dict:
 def info_sample(tracking_id: str = TRACKING_ID) -> dict:
     """STATUS_INFO — confirmed mapping, no ambiguity."""
     return parcel(
-        "STATUS_INFO", tracking_id=tracking_id, status_code=10, status_text="Informational"
+        "STATUS_INFO",
+        tracking_id=tracking_id,
+        status_code=10,
+        status_text="Informational",
     )
 
 

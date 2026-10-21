@@ -1,8 +1,9 @@
 """Sensor platform for the DAO parcel tracker integration."""
+
 from __future__ import annotations
 
-import logging
 from datetime import datetime
+import logging
 from typing import Any
 
 from homeassistant.components.sensor import (
@@ -30,7 +31,6 @@ _LOGGER = logging.getLogger(__name__)
 PARALLEL_UPDATES = 0
 
 
-
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: DAOConfigEntry,
@@ -42,9 +42,7 @@ async def async_setup_entry(
     # than (too late) from this forwarded platform.
     coordinator = entry.runtime_data.coordinator
 
-    current_barcodes: set[str] = {
-        p.get("barcode", "") for p in coordinator.data or []
-    }
+    current_barcodes: set[str] = {p.get("barcode", "") for p in coordinator.data or []}
     entry_id = entry.entry_id
 
     # Remove per-parcel sensors from the registry whose barcode is no longer
@@ -67,7 +65,7 @@ async def async_setup_entry(
             and entity_entry.unique_id.startswith(f"{entry_id}_")
             and entity_entry.unique_id not in non_parcel_unique_ids
         ):
-            barcode = entity_entry.unique_id[len(f"{entry_id}_"):]
+            barcode = entity_entry.unique_id[len(f"{entry_id}_") :]
             if barcode not in current_barcodes:
                 registry.async_remove(entity_entry.entity_id)
 
@@ -76,10 +74,10 @@ async def async_setup_entry(
             coordinator, entry, async_add_entities, current_barcodes
         ),
     ]
-    for parcel in coordinator.data or []:
-        entities.append(
-            DAOParcelSensor(coordinator, entry, parcel.get("barcode", ""))
-        )
+    entities.extend(
+        DAOParcelSensor(coordinator, entry, parcel.get("barcode", ""))
+        for parcel in coordinator.data or []
+    )
     entities.append(DAONextDeliverySensor(coordinator, entry))
     entities.append(DAOAwaitingPickupSensor(coordinator, entry))
     entities.append(DAODeliveredParcelsSensor(coordinator, entry))
@@ -90,9 +88,7 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class DAOIncomingParcelsSensor(
-    CoordinatorEntity[DAOCoordinator], SensorEntity
-):
+class DAOIncomingParcelsSensor(CoordinatorEntity[DAOCoordinator], SensorEntity):
     """Summary sensor: count of active (not-yet-delivered) tracked parcels.
 
     Spawns a per-parcel sensor for each new barcode and removes stale ones
@@ -195,9 +191,7 @@ class DAOParcelSensor(CoordinatorEntity[DAOCoordinator], SensorEntity):
         return dict(parcel) if parcel else {}
 
 
-class DAONextDeliverySensor(
-    CoordinatorEntity[DAOCoordinator], SensorEntity
-):
+class DAONextDeliverySensor(CoordinatorEntity[DAOCoordinator], SensorEntity):
     """Earliest expected delivery datetime across all active parcels."""
 
     _attr_has_entity_name = True
@@ -205,9 +199,7 @@ class DAONextDeliverySensor(
     _attr_device_class = SensorDeviceClass.TIMESTAMP
     _attr_attribution = ATTRIBUTION
 
-    def __init__(
-        self, coordinator: DAOCoordinator, entry: ConfigEntry
-    ) -> None:
+    def __init__(self, coordinator: DAOCoordinator, entry: ConfigEntry) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
         self._attr_unique_id = f"{entry.entry_id}_next_delivery"
@@ -246,9 +238,7 @@ class DAONextDeliverySensor(
         }
 
 
-class DAOAwaitingPickupSensor(
-    CoordinatorEntity[DAOCoordinator], SensorEntity
-):
+class DAOAwaitingPickupSensor(CoordinatorEntity[DAOCoordinator], SensorEntity):
     """Sensor reporting parcels waiting to be collected at a pickup point.
 
     DAO's ``STATUS_OK`` reaches this status via an ASSUMED split (see
@@ -263,9 +253,7 @@ class DAOAwaitingPickupSensor(
     _attr_attribution = ATTRIBUTION
     _unrecorded_attributes = frozenset({"parcels"})
 
-    def __init__(
-        self, coordinator: DAOCoordinator, entry: ConfigEntry
-    ) -> None:
+    def __init__(self, coordinator: DAOCoordinator, entry: ConfigEntry) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
         self._attr_unique_id = f"{entry.entry_id}_awaiting_pickup"
@@ -274,7 +262,8 @@ class DAOAwaitingPickupSensor(
     def _get_pickup_parcels(self) -> list[dict]:
         """Return active parcels waiting for collection at a pickup point."""
         return [
-            p for p in (self.coordinator.data or [])
+            p
+            for p in (self.coordinator.data or [])
             if p.get("status") == ParcelStatus.AT_PICKUP_POINT
         ]
 
@@ -289,9 +278,7 @@ class DAOAwaitingPickupSensor(
         return {"parcels": self._get_pickup_parcels()}
 
 
-class DAODeliveredParcelsSensor(
-    CoordinatorEntity[DAOCoordinator], SensorEntity
-):
+class DAODeliveredParcelsSensor(CoordinatorEntity[DAOCoordinator], SensorEntity):
     """Recently delivered tracked DAO parcels."""
 
     _attr_has_entity_name = True
@@ -300,9 +287,7 @@ class DAODeliveredParcelsSensor(
     _attr_attribution = ATTRIBUTION
     _unrecorded_attributes = frozenset({"parcels"})
 
-    def __init__(
-        self, coordinator: DAOCoordinator, entry: ConfigEntry
-    ) -> None:
+    def __init__(self, coordinator: DAOCoordinator, entry: ConfigEntry) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
         self._attr_unique_id = f"{entry.entry_id}_delivered_parcels"
@@ -319,9 +304,7 @@ class DAODeliveredParcelsSensor(
         return {"parcels": self.coordinator.delivered}
 
 
-class DAOLastUpdateSensor(
-    CoordinatorEntity[DAOCoordinator], SensorEntity
-):
+class DAOLastUpdateSensor(CoordinatorEntity[DAOCoordinator], SensorEntity):
     """Diagnostic sensor reporting when DAO was last polled successfully."""
 
     _attr_has_entity_name = True
@@ -330,9 +313,7 @@ class DAOLastUpdateSensor(
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_attribution = ATTRIBUTION
 
-    def __init__(
-        self, coordinator: DAOCoordinator, entry: ConfigEntry
-    ) -> None:
+    def __init__(self, coordinator: DAOCoordinator, entry: ConfigEntry) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
         self._attr_unique_id = f"{entry.entry_id}_last_update"
@@ -344,9 +325,7 @@ class DAOLastUpdateSensor(
         return self.coordinator.last_success_time
 
 
-class DAOOutgoingParcelsSensor(
-    CoordinatorEntity[DAOCoordinator], SensorEntity
-):
+class DAOOutgoingParcelsSensor(CoordinatorEntity[DAOCoordinator], SensorEntity):
     """Summary sensor: count of active outgoing (``bound: "OUT"``) parcels."""
 
     _attr_has_entity_name = True
@@ -355,9 +334,7 @@ class DAOOutgoingParcelsSensor(
     _attr_attribution = ATTRIBUTION
     _unrecorded_attributes = frozenset({"parcels"})
 
-    def __init__(
-        self, coordinator: DAOCoordinator, entry: ConfigEntry
-    ) -> None:
+    def __init__(self, coordinator: DAOCoordinator, entry: ConfigEntry) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
         self._attr_unique_id = f"{entry.entry_id}_outgoing_parcels"
@@ -385,9 +362,7 @@ class DAOOutgoingDeliveredParcelsSensor(
     _attr_attribution = ATTRIBUTION
     _unrecorded_attributes = frozenset({"parcels"})
 
-    def __init__(
-        self, coordinator: DAOCoordinator, entry: ConfigEntry
-    ) -> None:
+    def __init__(self, coordinator: DAOCoordinator, entry: ConfigEntry) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
         self._attr_unique_id = f"{entry.entry_id}_outgoing_delivered_parcels"

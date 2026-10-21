@@ -2,11 +2,13 @@
 
 The parcel mapping itself is covered by ``test_parcels.py``.
 """
+
 from unittest.mock import AsyncMock
 
 import aiohttp
-import pytest
 from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers import device_registry as dr
+import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.dao.api import DAOApiError, DAOAuthError
@@ -62,7 +64,10 @@ async def test_update_splits_active_and_delivered(hass):
     entry = _entry()
     entry.add_to_hass(hass)
     client = AsyncMock()
-    client.async_get_parcels.return_value = [in_transit_sample(), delivered_sample(SECOND_CODE)]
+    client.async_get_parcels.return_value = [
+        in_transit_sample(),
+        delivered_sample(SECOND_CODE),
+    ]
     coordinator = DAOCoordinator(hass, client, entry)
 
     data = await coordinator._async_update_data()
@@ -190,7 +195,10 @@ async def test_outgoing_never_fires_registered_or_delivery_time_changed(hass):
     coordinator = DAOCoordinator(hass, client, entry)
 
     fired = []
-    for suffix in ("outgoing_parcel_registered", "outgoing_parcel_delivery_time_changed"):
+    for suffix in (
+        "outgoing_parcel_registered",
+        "outgoing_parcel_delivery_time_changed",
+    ):
         hass.bus.async_listen(f"{DOMAIN}_{suffix}", lambda e: fired.append(e))
 
     client.async_get_parcels.return_value = []
@@ -231,8 +239,6 @@ async def test_first_refresh_fires_nothing(hass):
 
 
 async def test_event_carries_device_id(hass):
-    from homeassistant.helpers import device_registry as dr
-
     entry = _entry()
     entry.add_to_hass(hass)
     device = dr.async_get(hass).async_get_or_create(
@@ -243,9 +249,7 @@ async def test_event_carries_device_id(hass):
     coordinator = DAOCoordinator(hass, client, entry)
 
     events = []
-    hass.bus.async_listen(
-        f"{DOMAIN}_parcel_status_changed", lambda e: events.append(e)
-    )
+    hass.bus.async_listen(f"{DOMAIN}_parcel_status_changed", lambda e: events.append(e))
 
     client.async_get_parcels.return_value = [in_transit_sample()]
     await coordinator._async_update_data()
@@ -263,9 +267,7 @@ async def test_fires_status_changed_event(hass):
     coordinator = DAOCoordinator(hass, client, entry)
 
     events = []
-    hass.bus.async_listen(
-        f"{DOMAIN}_parcel_status_changed", lambda e: events.append(e)
-    )
+    hass.bus.async_listen(f"{DOMAIN}_parcel_status_changed", lambda e: events.append(e))
 
     client.async_get_parcels.return_value = [in_transit_sample()]
     await coordinator._async_update_data()  # first refresh: suppressed
@@ -316,7 +318,10 @@ async def test_no_events_for_parcel_first_seen_delivered(hass):
 
     client.async_get_parcels.return_value = [in_transit_sample()]
     await coordinator._async_update_data()  # first refresh seeds the state
-    client.async_get_parcels.return_value = [in_transit_sample(), delivered_sample(SECOND_CODE)]
+    client.async_get_parcels.return_value = [
+        in_transit_sample(),
+        delivered_sample(SECOND_CODE),
+    ]
     await coordinator._async_update_data()
     await hass.async_block_till_done()
 
@@ -471,7 +476,9 @@ async def test_detail_call_failure_degrades_gracefully(hass):
     entry.add_to_hass(hass)
     client = AsyncMock()
     client.async_get_parcels.return_value = [in_transit_sample()]
-    client.async_get_parcel_detail.side_effect = DAOApiError("HTTP 503", status_code=503)
+    client.async_get_parcel_detail.side_effect = DAOApiError(
+        "HTTP 503", status_code=503
+    )
     coordinator = DAOCoordinator(hass, client, entry)
 
     data = await coordinator._async_update_data()

@@ -1,9 +1,7 @@
 """Tests for DAO device triggers."""
+
 from custom_components.dao.const import DOMAIN
-from custom_components.dao.device_trigger import (
-    TRIGGER_EVENTS,
-    async_get_triggers,
-)
+from custom_components.dao.device_trigger import TRIGGER_EVENTS, async_get_triggers
 
 
 async def test_get_triggers_returns_all_six(hass):

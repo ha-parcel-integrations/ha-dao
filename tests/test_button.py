@@ -1,4 +1,5 @@
 """Tests for the DAO refresh button."""
+
 from unittest.mock import AsyncMock, MagicMock
 
 from custom_components.dao.button import DAORefreshButton

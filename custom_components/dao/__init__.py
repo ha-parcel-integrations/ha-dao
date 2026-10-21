@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
+import logging
 
 import aiohttp
 from homeassistant.config_entries import ConfigEntry
@@ -11,12 +11,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .api import (
-    DAOApiClient,
-    DAOApiError,
-    DAOAuthError,
-    resolve_lang,
-)
+from .api import DAOApiClient, DAOApiError, DAOAuthError, resolve_lang
 from .const import CONF_REFRESH_TOKEN, PLATFORMS
 from .coordinator import DAOCoordinator
 

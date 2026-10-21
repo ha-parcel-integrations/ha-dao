@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import base64
+import contextlib
+from datetime import UTC, datetime, timedelta
 import hashlib
+import json
 import secrets
-from datetime import datetime, timedelta, timezone
 from typing import Any
 from urllib.parse import urlencode
 
@@ -145,28 +147,24 @@ class DAOApiClient:
             payload["access_token"],
             payload["refresh_token"],
         )
-        self._expires_at = datetime.now(timezone.utc) + timedelta(
+        self._expires_at = datetime.now(UTC) + timedelta(
             seconds=int(payload.get("expires_in", 300))
         )
         # Keycloak's id_token sub is a stable account identifier; it is never logged.
         token = payload.get("id_token", "").split(".")
         if len(token) == 3:
-            try:
+            with contextlib.suppress(ValueError, UnicodeDecodeError):
                 self.account_subject = (
                     str(
-                        __import__("json")
-                        .loads(
+                        json.loads(
                             base64.urlsafe_b64decode(
                                 token[1] + "=" * (-len(token[1]) % 4)
                             )
-                        )
-                        .get("sub")
+                        ).get("sub")
                         or ""
                     )
                     or None
                 )
-            except (ValueError, UnicodeDecodeError):
-                pass
 
     async def async_exchange_code(self, code: str, verifier: str) -> None:
         """Exchange a pasted authorization code for the account's tokens."""
@@ -192,7 +190,7 @@ class DAOApiClient:
             not force
             and self.access_token
             and self._expires_at
-            and datetime.now(timezone.utc) < self._expires_at - timedelta(seconds=120)
+            and datetime.now(UTC) < self._expires_at - timedelta(seconds=120)
         ):
             return
         await self._token(
