@@ -74,7 +74,7 @@ Copy `custom_components/dao` into your `config/custom_components/` folder and re
 
 [![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=dao)
 
-Or add it by hand: add the integration via **Settings → Devices & Services → Add Integration → DAO**. The flow shows a DAO sign-in link — open it in a **desktop browser** (the DAO mobile app will otherwise swallow the login redirect) and sign in. After signing in, the browser lands on an address the integration can't receive directly; copy that address bar URL back into the Home Assistant flow to finish. See [`docs/finding-the-redirect-url.md`](docs/finding-the-redirect-url.md) if you get stuck.
+Or set it up by hand: add the integration via **Settings → Devices & Services → Add Integration → DAO**. The flow shows a DAO sign-in link — open it in a **desktop browser** (the DAO mobile app will otherwise swallow the login redirect) and sign in. After signing in, the browser lands on an address the integration can't receive directly; copy that address bar URL back into the Home Assistant flow to finish. See [`docs/finding-the-redirect-url.md`](docs/finding-the-redirect-url.md) if you get stuck.
 
 Home Assistant never sees your DAO password — only a token issued after you've signed in with DAO directly.
 
