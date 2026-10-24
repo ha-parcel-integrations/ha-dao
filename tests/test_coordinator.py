@@ -39,6 +39,13 @@ from .payloads import (
 SUBJECT = "subject-1"
 
 
+def _client() -> AsyncMock:
+    client = AsyncMock()
+    # Matches the entry's stored token, so a poll has nothing to persist.
+    client.refresh_token = "rt-0"
+    return client
+
+
 def _entry(*, include_history: bool = False) -> MockConfigEntry:
     return MockConfigEntry(
         domain=DOMAIN,
@@ -63,7 +70,7 @@ def _entry(*, include_history: bool = False) -> MockConfigEntry:
 async def test_update_splits_active_and_delivered(hass):
     entry = _entry()
     entry.add_to_hass(hass)
-    client = AsyncMock()
+    client = _client()
     client.async_get_parcels.return_value = [
         in_transit_sample(),
         delivered_sample(SECOND_CODE),
@@ -80,7 +87,7 @@ async def test_update_splits_active_and_delivered(hass):
 async def test_update_handles_an_empty_account(hass):
     entry = _entry()
     entry.add_to_hass(hass)
-    client = AsyncMock()
+    client = _client()
     client.async_get_parcels.return_value = []
     coordinator = DAOCoordinator(hass, client, entry)
 
@@ -91,7 +98,7 @@ async def test_expired_session_triggers_reauth(hass):
     """An expired session must start reauth, not retry forever."""
     entry = _entry()
     entry.add_to_hass(hass)
-    client = AsyncMock()
+    client = _client()
     client.async_get_parcels.side_effect = DAOAuthError("HTTP 401")
     coordinator = DAOCoordinator(hass, client, entry)
 
@@ -108,7 +115,7 @@ async def test_outgoing_parcel_never_appears_in_incoming(hass):
     """A `bound: "OUT"` parcel must not be counted or listed as incoming."""
     entry = _entry()
     entry.add_to_hass(hass)
-    client = AsyncMock()
+    client = _client()
     client.async_get_parcels.return_value = [in_transit_sample(), outgoing_sample()]
     coordinator = DAOCoordinator(hass, client, entry)
 
@@ -121,7 +128,7 @@ async def test_outgoing_parcel_never_appears_in_incoming(hass):
 async def test_outgoing_delivered_parcel_is_split_out_too(hass):
     entry = _entry()
     entry.add_to_hass(hass)
-    client = AsyncMock()
+    client = _client()
     outgoing_delivered = delivered_sample(SECOND_CODE)
     outgoing_delivered["bound"] = "OUT"
     client.async_get_parcels.return_value = [outgoing_delivered]
@@ -137,7 +144,7 @@ async def test_outgoing_delivered_parcel_is_split_out_too(hass):
 async def test_outgoing_status_changed_fires_its_own_event(hass):
     entry = _entry()
     entry.add_to_hass(hass)
-    client = AsyncMock()
+    client = _client()
     coordinator = DAOCoordinator(hass, client, entry)
 
     events = []
@@ -161,7 +168,7 @@ async def test_outgoing_status_changed_fires_its_own_event(hass):
 async def test_outgoing_delivered_fires_its_own_event_not_status_changed(hass):
     entry = _entry()
     entry.add_to_hass(hass)
-    client = AsyncMock()
+    client = _client()
     coordinator = DAOCoordinator(hass, client, entry)
 
     delivered = []
@@ -191,7 +198,7 @@ async def test_outgoing_never_fires_registered_or_delivery_time_changed(hass):
     the rest of the suite's account-based outgoing model."""
     entry = _entry()
     entry.add_to_hass(hass)
-    client = AsyncMock()
+    client = _client()
     coordinator = DAOCoordinator(hass, client, entry)
 
     fired = []
@@ -219,7 +226,7 @@ async def test_first_refresh_fires_nothing(hass):
     """Otherwise every restart floods the user with "registered" events."""
     entry = _entry()
     entry.add_to_hass(hass)
-    client = AsyncMock()
+    client = _client()
     client.async_get_parcels.return_value = [in_transit_sample()]
     coordinator = DAOCoordinator(hass, client, entry)
 
@@ -245,7 +252,7 @@ async def test_event_carries_device_id(hass):
         config_entry_id=entry.entry_id,
         identifiers={(DOMAIN, entry.entry_id)},
     )
-    client = AsyncMock()
+    client = _client()
     coordinator = DAOCoordinator(hass, client, entry)
 
     events = []
@@ -263,7 +270,7 @@ async def test_event_carries_device_id(hass):
 async def test_fires_status_changed_event(hass):
     entry = _entry()
     entry.add_to_hass(hass)
-    client = AsyncMock()
+    client = _client()
     coordinator = DAOCoordinator(hass, client, entry)
 
     events = []
@@ -284,7 +291,7 @@ async def test_delivery_fires_delivered_event_and_not_status_changed(hass):
     """The hop to delivered fires exactly one, dedicated event."""
     entry = _entry()
     entry.add_to_hass(hass)
-    client = AsyncMock()
+    client = _client()
     coordinator = DAOCoordinator(hass, client, entry)
 
     delivered = []
@@ -309,7 +316,7 @@ async def test_no_events_for_parcel_first_seen_delivered(hass):
     """A parcel already delivered when it first appears fires nothing."""
     entry = _entry()
     entry.add_to_hass(hass)
-    client = AsyncMock()
+    client = _client()
     coordinator = DAOCoordinator(hass, client, entry)
 
     fired = []
@@ -331,7 +338,7 @@ async def test_no_events_for_parcel_first_seen_delivered(hass):
 async def test_fires_registered_event_for_new_parcel(hass):
     entry = _entry()
     entry.add_to_hass(hass)
-    client = AsyncMock()
+    client = _client()
     coordinator = DAOCoordinator(hass, client, entry)
 
     events = []
@@ -356,7 +363,7 @@ async def test_delivery_time_changed_never_fires(hass):
     still runs, it just never has anything to report for this carrier."""
     entry = _entry()
     entry.add_to_hass(hass)
-    client = AsyncMock()
+    client = _client()
     coordinator = DAOCoordinator(hass, client, entry)
 
     events = []
@@ -392,7 +399,7 @@ def _pickup_raw(tracking_id: str = ACTIVE_CODE) -> dict:
 async def test_detail_call_populates_history(hass):
     entry = _entry(include_history=True)
     entry.add_to_hass(hass)
-    client = AsyncMock()
+    client = _client()
     client.async_get_parcels.return_value = [in_transit_sample()]
     events = [status_event("STATUS_PROCESSING", "2026-04-24T09:00:00Z", 1)]
     client.async_get_parcel_detail.return_value = {"events": events}
@@ -413,7 +420,7 @@ async def test_detail_call_populates_history(hass):
 async def test_detail_call_skipped_when_history_option_is_off(hass):
     entry = _entry(include_history=False)
     entry.add_to_hass(hass)
-    client = AsyncMock()
+    client = _client()
     client.async_get_parcels.return_value = [in_transit_sample()]
     coordinator = DAOCoordinator(hass, client, entry)
 
@@ -426,7 +433,7 @@ async def test_detail_call_skipped_when_history_option_is_off(hass):
 async def test_pickup_point_lookup_resolves_the_name(hass):
     entry = _entry()
     entry.add_to_hass(hass)
-    client = AsyncMock()
+    client = _client()
     client.async_get_parcels.return_value = [_pickup_raw()]
     client.async_get_pickup_point.return_value = pickup_point_response()
     coordinator = DAOCoordinator(hass, client, entry)
@@ -442,7 +449,7 @@ async def test_history_cache_skips_refetch_when_status_code_unchanged(hass):
     across polls (a terminal, delivered parcel included) must not refetch."""
     entry = _entry(include_history=True)
     entry.add_to_hass(hass)
-    client = AsyncMock()
+    client = _client()
     client.async_get_parcels.return_value = [in_transit_sample()]
     client.async_get_parcel_detail.return_value = {
         "events": [status_event("STATUS_IN_TRANSIT", "2026-04-26T09:00:00Z", 48)]
@@ -458,7 +465,7 @@ async def test_history_cache_skips_refetch_when_status_code_unchanged(hass):
 async def test_history_cache_refetches_after_status_code_changes(hass):
     entry = _entry(include_history=True)
     entry.add_to_hass(hass)
-    client = AsyncMock()
+    client = _client()
     client.async_get_parcel_detail.return_value = {"events": []}
     coordinator = DAOCoordinator(hass, client, entry)
 
@@ -474,7 +481,7 @@ async def test_detail_call_failure_degrades_gracefully(hass):
     """One parcel's detail call failing must not fail the whole poll."""
     entry = _entry(include_history=True)
     entry.add_to_hass(hass)
-    client = AsyncMock()
+    client = _client()
     client.async_get_parcels.return_value = [in_transit_sample()]
     client.async_get_parcel_detail.side_effect = DAOApiError(
         "HTTP 503", status_code=503
@@ -490,7 +497,7 @@ async def test_detail_call_failure_degrades_gracefully(hass):
 async def test_detail_call_network_failure_degrades_gracefully(hass):
     entry = _entry(include_history=True)
     entry.add_to_hass(hass)
-    client = AsyncMock()
+    client = _client()
     client.async_get_parcels.return_value = [in_transit_sample()]
     client.async_get_parcel_detail.side_effect = aiohttp.ClientError("boom")
     coordinator = DAOCoordinator(hass, client, entry)
@@ -504,7 +511,7 @@ async def test_pickup_point_call_failure_degrades_gracefully(hass):
     """One parcel's pickup-point lookup failing must not fail the whole poll."""
     entry = _entry()
     entry.add_to_hass(hass)
-    client = AsyncMock()
+    client = _client()
     client.async_get_parcels.return_value = [_pickup_raw()]
     client.async_get_pickup_point.side_effect = DAOApiError("HTTP 503", status_code=503)
     coordinator = DAOCoordinator(hass, client, entry)
@@ -518,7 +525,7 @@ async def test_pickup_point_call_failure_degrades_gracefully(hass):
 async def test_pickup_point_call_network_failure_degrades_gracefully(hass):
     entry = _entry()
     entry.add_to_hass(hass)
-    client = AsyncMock()
+    client = _client()
     client.async_get_parcels.return_value = [_pickup_raw()]
     client.async_get_pickup_point.side_effect = aiohttp.ClientError("boom")
     coordinator = DAOCoordinator(hass, client, entry)
@@ -534,7 +541,7 @@ async def test_detail_call_auth_error_propagates_as_reauth(hass):
     as one parcel's missing history."""
     entry = _entry(include_history=True)
     entry.add_to_hass(hass)
-    client = AsyncMock()
+    client = _client()
     client.async_get_parcels.return_value = [in_transit_sample()]
     client.async_get_parcel_detail.side_effect = DAOAuthError("session dead")
     coordinator = DAOCoordinator(hass, client, entry)
@@ -546,10 +553,46 @@ async def test_detail_call_auth_error_propagates_as_reauth(hass):
 async def test_pickup_point_auth_error_propagates_as_reauth(hass):
     entry = _entry()
     entry.add_to_hass(hass)
-    client = AsyncMock()
+    client = _client()
     client.async_get_parcels.return_value = [_pickup_raw()]
     client.async_get_pickup_point.side_effect = DAOAuthError("session dead")
     coordinator = DAOCoordinator(hass, client, entry)
 
     with pytest.raises(ConfigEntryAuthFailed):
         await coordinator._async_update_data()
+
+
+async def test_rotated_refresh_token_is_persisted(hass):
+    entry = _entry()
+    entry.add_to_hass(hass)
+    client = _client()
+
+    async def rotate() -> list:
+        client.refresh_token = "rt-1"
+        return []
+
+    client.async_get_parcels.side_effect = rotate
+    coordinator = DAOCoordinator(hass, client, entry)
+
+    await coordinator._async_update_data()
+
+    assert entry.data[CONF_REFRESH_TOKEN] == "rt-1"
+
+
+async def test_rotated_refresh_token_survives_a_failed_poll(hass):
+    """The refresh succeeded even though the request after it did not."""
+    entry = _entry()
+    entry.add_to_hass(hass)
+    client = _client()
+
+    async def rotate_then_fail() -> list:
+        client.refresh_token = "rt-1"
+        raise DAOApiError("HTTP 500", status_code=500)
+
+    client.async_get_parcels.side_effect = rotate_then_fail
+    coordinator = DAOCoordinator(hass, client, entry)
+
+    with pytest.raises(DAOApiError):
+        await coordinator._async_update_data()
+
+    assert entry.data[CONF_REFRESH_TOKEN] == "rt-1"

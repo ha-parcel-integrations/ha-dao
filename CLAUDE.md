@@ -82,7 +82,12 @@ own.
 **Refresh-token handling.** Only `refresh_token` (plus the account identity
 used for `async_set_unique_id`) is persisted in the config entry; the access
 token lives in memory only and is refreshed proactively within 120 s of
-expiry, and once more on a 401 before giving up. Real refresh-token/session
+expiry, and once more on a 401 before giving up. DAO returns a new refresh
+token on every refresh, so the coordinator writes it back to the entry after
+every poll — in a `finally`, because a poll that fails after its refresh
+succeeded has still rotated the token (raised in the HACS default review,
+hacs/default#12168). Without that, a restart resumes from the sign-in token
+and falls into reauth. Real refresh-token/session
 lifetime numbers are not yet measured (blocked on the real-parcel capture),
 so there is currently no independent keepalive timer separate from the
 coordinator's own poll cycle — a long dynamic-polling interval could

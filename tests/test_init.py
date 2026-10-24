@@ -56,6 +56,25 @@ async def test_setup_and_unload(hass):
     assert entry.state is ConfigEntryState.NOT_LOADED
 
 
+async def test_setup_persists_a_rotated_refresh_token(hass):
+    """A restart must resume from the newest token, not the sign-in one."""
+    entry = _entry()
+    entry.add_to_hass(hass)
+
+    async def rotate(self, *, force: bool = False) -> None:
+        self.refresh_token = "rt-1"
+
+    with (
+        patch(f"{CLIENT}.async_refresh", new=rotate),
+        patch(f"{CLIENT}.async_get_parcels", new=AsyncMock(return_value=[])),
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.LOADED
+    assert entry.data[CONF_REFRESH_TOKEN] == "rt-1"
+
+
 async def test_rejected_credentials_start_reauth(hass):
     entry = _entry()
     entry.add_to_hass(hass)

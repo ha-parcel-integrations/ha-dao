@@ -26,6 +26,7 @@ from homeassistant.util import dt as dt_util
 from .api import DAOApiClient, DAOApiError, DAOAuthError
 from .const import (
     CONF_INCLUDE_HISTORY,
+    CONF_REFRESH_TOKEN,
     DEFAULT_INCLUDE_HISTORY,
     DOMAIN,
     HOT_INTERVAL_MINUTES,
@@ -192,6 +193,16 @@ class DAOCoordinator(DataUpdateCoordinator[list[dict]]):
         """Tier minutes computed on the last refresh (diagnostics only)."""
         return self._current_tier_minutes
 
+    def _persist_refresh_token(self) -> None:
+        """Store the client's refresh token if a refresh rotated it."""
+        token = self._client.refresh_token
+        if not token or token == self.config_entry.data.get(CONF_REFRESH_TOKEN):
+            return
+        self.hass.config_entries.async_update_entry(
+            self.config_entry,
+            data={**self.config_entry.data, CONF_REFRESH_TOKEN: token},
+        )
+
     def _device_id(self) -> str | None:
         """Resolve (and cache) this entry's device id for event payloads."""
         if self._cached_device_id is not None:
@@ -302,6 +313,10 @@ class DAOCoordinator(DataUpdateCoordinator[list[dict]]):
             raise UpdateFailed(
                 "DAO rate-limited (429)", retry_after=retry_after
             ) from err
+        finally:
+            # A refresh inside a poll that later fails still rotated the
+            # token; losing it would leave a restart holding a dead one.
+            self._persist_refresh_token()
         self._consecutive_429 = 0
 
         include_history = self._include_history

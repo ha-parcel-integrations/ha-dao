@@ -149,6 +149,13 @@ def test_candidate_landing_in_quiet_window_clamps_to_the_midnight_anchor():
 # ---------------------------------------------------------------------------
 
 
+def _client() -> AsyncMock:
+    client = AsyncMock()
+    # Matches the entry's stored token, so a poll has nothing to persist.
+    client.refresh_token = "rt-0"
+    return client
+
+
 def _entry() -> MockConfigEntry:
     return MockConfigEntry(
         domain=DOMAIN,
@@ -165,7 +172,7 @@ def _entry() -> MockConfigEntry:
 async def test_update_interval_never_none_with_an_empty_account(hass):
     entry = _entry()
     entry.add_to_hass(hass)
-    client = AsyncMock()
+    client = _client()
     client.async_get_parcels.return_value = []
     coordinator = DAOCoordinator(hass, client, entry)
 
@@ -180,7 +187,7 @@ async def test_update_interval_is_mid_for_an_in_transit_parcel(hass):
     active parcel therefore always lands in the mid tier, never hot."""
     entry = _entry()
     entry.add_to_hass(hass)
-    client = AsyncMock()
+    client = _client()
     client.async_get_parcels.return_value = [in_transit_sample()]
     coordinator = DAOCoordinator(hass, client, entry)
 
@@ -192,7 +199,7 @@ async def test_update_interval_is_mid_for_an_in_transit_parcel(hass):
 async def test_429_raises_update_failed_with_retry_after(hass):
     entry = _entry()
     entry.add_to_hass(hass)
-    client = AsyncMock()
+    client = _client()
     client.async_get_parcels.side_effect = DAOApiError(
         "HTTP 429", status_code=429, retry_after=120
     )
@@ -207,7 +214,7 @@ async def test_429_raises_update_failed_with_retry_after(hass):
 async def test_429_backoff_grows_without_a_retry_after_header(hass):
     entry = _entry()
     entry.add_to_hass(hass)
-    client = AsyncMock()
+    client = _client()
     client.async_get_parcels.side_effect = DAOApiError(
         "HTTP 429", status_code=429, retry_after=None
     )
@@ -226,7 +233,7 @@ async def test_non_429_api_error_still_propagates(hass):
     """The existing 5xx-is-not-caught behaviour must survive Section 3's addition."""
     entry = _entry()
     entry.add_to_hass(hass)
-    client = AsyncMock()
+    client = _client()
     client.async_get_parcels.side_effect = DAOApiError("HTTP 500", status_code=500)
     coordinator = DAOCoordinator(hass, client, entry)
 
