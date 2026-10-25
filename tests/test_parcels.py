@@ -55,7 +55,6 @@ def _reset_one_shot_warnings():
     parcels_module._unmapped_bounds_logged.clear()
     parcels_module._assumed_ok_split_warned = False
     parcels_module._unverified_history_warned = False
-    parcels_module._unverified_pickup_point_warned = False
 
 
 # ---------------------------------------------------------------------------
@@ -106,6 +105,19 @@ def test_map_parcel_status_ok_code_51_is_delivered_even_with_pickup_point():
         map_parcel_status("STATUS_OK", status_code=51, pickup_point_id="PP1")
         == ParcelStatus.DELIVERED
     )
+
+
+def test_map_parcel_status_code_25_dropped_off_at_shop_is_in_transit(caplog):
+    """Confirmed by issue #5: statusCode 25 ("Indleveret i daoSHOP") arrives
+    as STATUS_PROCESSING but the parcel is already with DAO."""
+    assert (
+        map_parcel_status("STATUS_PROCESSING", status_code=25)
+        == ParcelStatus.IN_TRANSIT
+    )
+    assert map_parcel_status("STATUS_PROCESSING", status_code=1) == (
+        ParcelStatus.REGISTERED
+    )
+    assert "no known mapping" not in caplog.text
 
 
 def test_map_parcel_status_ok_code_51_does_not_warn(caplog):
@@ -345,7 +357,7 @@ def test_normalize_delivered_parcel():
     assert parcel["delivered_at"] == "2026-04-29T13:12:42Z"
     assert parcel["pickup"] is False
     assert parcel["pickup_point"] is None
-    assert parcel["url"] == "https://send.dao.as/parcel/TESTBARCODE001"
+    assert parcel["url"] == "https://dao.as/find-din-pakke/#q=TESTBARCODE001"
 
 
 def test_normalize_history_is_opt_in():
@@ -389,20 +401,11 @@ def test_normalize_pickup_point_id_without_resolved_object_is_none():
     assert parcel["pickup_point"] is None
 
 
-def test_normalize_pickup_point_warns_once_ever(caplog):
-    """The pickup-point shape is only confirmed by reading the app's own
-    code, never by a live call — flag it the moment a name is resolved."""
-    normalize_parcel(pickup_sample())
-    normalize_parcel(pickup_sample())
-    assert caplog.text.count("only confirmed by reading the app's own code") == 1
-    assert "issues/new" in caplog.text
-
-
-def test_normalize_does_not_warn_when_pickup_point_is_unresolved():
-    raw = pickup_sample()
-    del raw["pickupPoint"]
-    normalize_parcel(raw)
-    assert parcels_module._unverified_pickup_point_warned is False
+def test_confirmed_status_codes_do_not_warn(caplog):
+    """Codes 1 and 51 are confirmed by real parcels — no mapping warning."""
+    parcels_module._warn_unmapped_status_code(1)
+    parcels_module._warn_unmapped_status_code(51)
+    assert "no known mapping" not in caplog.text
 
 
 def test_normalize_pending_placeholder():

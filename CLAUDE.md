@@ -138,17 +138,20 @@ resolved pickup-point object being merged into the raw parcel dict before
 that merge now (`api.async_get_pickup_point()`, cached on the client per id
 since pickup points are near-static and shared across parcels), so a
 tracked `pickup: true` parcel resolves a real `pickup_point` name once the
-lookup succeeds. `history` is opt-in (`CONF_INCLUDE_HISTORY`, off by
-default) and comes from `api.async_get_parcel_detail()`'s `events[]`,
-fetched once per parcel and re-fetched only when that parcel's raw
-`statusCode` changes — a delivered parcel's timeline is then fixed and is
-never refetched again. Both calls are unverified against a live account
-(see `TODO.md`): a failure on either degrades that one parcel to no
-history / no pickup point rather than failing the poll (the per-parcel
-tripwire below), and the first time either actually produces data it fires
-its own one-shot `WARNING` (`parcels._warn_unverified_history` /
-`parcels._warn_unverified_pickup_point`), same standing as the `STATUS_OK`
-split above.
+lookup succeeds. The pickup-point shape is confirmed live (issue #5: `name`,
+address, coordinates, opening hours). `history` is opt-in
+(`CONF_INCLUDE_HISTORY`, off by default) and comes from
+`api.async_get_parcel_detail()`'s `events[]`, fetched once per parcel and
+re-fetched only when that parcel's raw `statusCode` changes — a delivered
+parcel's timeline is then fixed and is never refetched again. The detail call
+is unverified against a live account (see `TODO.md`): a failure on either call
+degrades that one parcel to no history / no pickup point rather than failing
+the poll (the per-parcel tripwire below), and the first time history actually
+produces data it fires a one-shot `WARNING`
+(`parcels._warn_unverified_history`), same standing as the `STATUS_OK` split
+above. `statusCode` 1 (`STATUS_PROCESSING`), 25 and 51 are confirmed and never warn.
+Code 25 ("Indleveret i daoSHOP", issue #5) arrives as `STATUS_PROCESSING` yet
+maps to `in_transit` via `_CONFIRMED_CODE_OVERRIDES`, which beats the type map.
 
 **`awaiting_pickup` sensor** exists (`sensor.DAOAwaitingPickupSensor`) since
 the mapping above can reach `ParcelStatus.AT_PICKUP_POINT`; its unique id is

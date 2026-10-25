@@ -56,6 +56,18 @@ _STATUS_OK_CONFIRMED_CODES: dict[int, ParcelStatus] = {
     51: ParcelStatus.DELIVERED,
 }
 
+# `statusCode` values that override the `statusType` mapping, whatever type
+# carries them. 25 ("Indleveret i daoSHOP" — dropped off at a daoSHOP) arrives
+# as `STATUS_PROCESSING` but the parcel is already with DAO, awaiting transport
+# from the shop (issue #5), so it is `in_transit`, not `registered`.
+_CONFIRMED_CODE_OVERRIDES: dict[int, ParcelStatus] = {
+    25: ParcelStatus.IN_TRANSIT,
+}
+
+# `statusCode` values a real parcel has reported, so they need no warning:
+# 1 is `STATUS_PROCESSING` (issue #5), 25 and 51 are the confirmed codes above.
+_CONFIRMED_STATUS_CODES = frozenset({"1", "25", "51"})
+
 # Directions seen on the wire. "IN" is the default for anything unrecognised
 # rather than silently dropping a parcel.
 BOUND_INCOMING = "IN"
@@ -70,12 +82,11 @@ _unmapped_bounds_logged: set[str] = set()
 # A bool, not a set: the thing being flagged is the mapping mechanism itself,
 # not a particular value, so it only needs to fire once, ever.
 _assumed_ok_split_warned = False
-# Whether the detail-call (events[]) / pickup-point shapes have already been
-# flagged, ever. Both were settled by reading the app's own decompiled code,
-# never by a live call — same standing as the STATUS_OK split above, so they
-# get the same one-shot treatment the moment either actually produces data.
+# Whether the detail-call (events[]) shape has already been flagged, ever. It
+# was settled by reading the app's own decompiled code, never by a live call —
+# same standing as the STATUS_OK split above, so it gets the same one-shot
+# treatment the moment it actually produces data.
 _unverified_history_warned = False
-_unverified_pickup_point_warned = False
 
 
 def _warn_unmapped_status(status_type: str) -> None:
@@ -94,14 +105,13 @@ def _warn_unmapped_status(status_type: str) -> None:
 def _warn_unmapped_status_code(status_code: Any) -> None:
     """Log a DAO statusCode the first time it is seen.
 
-    There is no known table for this field at all beyond the confirmed
-    entries in `_STATUS_OK_CONFIRMED_CODES`, so every distinct value is
-    reported the same way an unmapped statusType would be — it is never used
-    to derive `status` on its own (only as a lookup key against that small
-    confirmed table).
+    There is no known table for this field beyond `_CONFIRMED_STATUS_CODES`,
+    so every other distinct value is reported the same way an unmapped
+    statusType would be — it is never used to derive `status` on its own (only
+    as a lookup key against `_STATUS_OK_CONFIRMED_CODES`).
     """
     key = str(status_code)
-    if key in _unmapped_status_codes_logged:
+    if key in _CONFIRMED_STATUS_CODES or key in _unmapped_status_codes_logged:
         return
     _unmapped_status_codes_logged.add(key)
     _LOGGER.warning(
@@ -172,25 +182,6 @@ def _warn_unverified_history() -> None:
     )
 
 
-def _warn_unverified_pickup_point() -> None:
-    """Log once, ever: the resolved pickup-point shape has never been seen live.
-
-    Same standing as :func:`_warn_unverified_history` — the field names are
-    confirmed structurally from the app's own code, not from a real
-    ``pickup-points/{id}`` response.
-    """
-    global _unverified_pickup_point_warned  # noqa: PLW0603 - one-shot warning flag; tests reset it
-    if _unverified_pickup_point_warned:
-        return
-    _unverified_pickup_point_warned = True
-    _LOGGER.warning(
-        "DAO resolved a pickup point from a shape that was only confirmed "
-        "by reading the app's own code, never by a live call. If the name "
-        "or address looks wrong, open an issue and paste this line: %s",
-        NEW_ISSUE_URL,
-    )
-
-
 def _resolve_status_type(
     status_type: str | None, status_code: Any, pickup_point_id: Any
 ) -> ParcelStatus | None:
@@ -202,6 +193,12 @@ def _resolve_status_type(
     """
     if not status_type:
         return None
+    try:
+        override = _CONFIRMED_CODE_OVERRIDES.get(int(status_code))
+    except (TypeError, ValueError):
+        override = None
+    if override is not None:
+        return override
     if status_type == "STATUS_OK":
         try:
             confirmed = _STATUS_OK_CONFIRMED_CODES.get(int(status_code))
@@ -391,8 +388,6 @@ def normalize_parcel(raw: dict, *, include_history: bool = False) -> dict:
 
     pickup_point = raw.get("pickupPoint") or {}
     pickup_point_name = pickup_point.get("name") or None
-    if pickup_point_name:
-        _warn_unverified_pickup_point()
 
     return {
         "carrier": "DAO",

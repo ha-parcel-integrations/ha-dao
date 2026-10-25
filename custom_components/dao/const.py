@@ -91,12 +91,7 @@ DAO_REDIRECT_URL_DOCS_URL = (
     "https://github.com/ha-parcel-integrations/ha-dao/blob/main/docs/"
     "finding-the-redirect-url.md"
 )
-# The path is read straight off the app's own router; the host is the one
-# hop that is assumed rather than observed (send.dao.as serves the same
-# Expo Router codebase as a website build, so its web export should follow
-# the same route file — never independently loaded). If that assumption is
-# wrong, this is the one line to fix.
-TRACKING_URL = "https://send.dao.as/parcel/{tracking_code}"
+TRACKING_URL = "https://dao.as/find-din-pakke/#q={tracking_code}"
 
 # Delivered-parcels retention: keep delivered parcels visible for the last N
 # days, or keep only the N most recent — identical across the suite.
