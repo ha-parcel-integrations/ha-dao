@@ -154,7 +154,7 @@ above. `statusCode` 1 (`STATUS_PROCESSING`), 12 (`STATUS_IN_TRANSIT`), 25, 32
 are confirmed and never warn.
 Code 25 ("Indleveret i daoSHOP", issue #5) arrives as `STATUS_PROCESSING` yet
 maps to `in_transit` via `_CONFIRMED_CODE_OVERRIDES`, which beats the type map.
-Codes 11 and 26 (terminal arrival / on the way) sit there too, ASSUMED on their
+Codes 11, 23 and 26 (terminal arrival / on the way to a terminal or shop) sit there too, ASSUMED on their
 text alone — move them out once an account payload shows their `statusType`.
 
 **`awaiting_pickup` sensor** exists (`sensor.DAOAwaitingPickupSensor`) since

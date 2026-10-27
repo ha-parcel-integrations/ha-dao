@@ -122,7 +122,7 @@ def test_map_parcel_status_code_25_dropped_off_at_shop_is_in_transit(caplog):
 
 def test_map_parcel_status_terminal_codes_are_in_transit():
     """11 and 26 are assumed in transit on their text, whatever statusType."""
-    for code in (11, 26):
+    for code in (11, 23, 26):
         assert (
             map_parcel_status("STATUS_PROCESSING", status_code=code)
             == ParcelStatus.IN_TRANSIT
@@ -421,8 +421,8 @@ def test_normalize_pickup_point_id_without_resolved_object_is_none():
 
 
 def test_confirmed_status_codes_do_not_warn(caplog):
-    """Codes 1, 11, 12, 25, 26 and 51 are known by real parcels — no mapping warning."""
-    for code in (1, 11, 12, 25, 26, 51):
+    """Codes 1, 11, 12, 23, 25, 26, 32 and 51 are known by real parcels — no mapping warning."""
+    for code in (1, 11, 12, 23, 25, 26, 32, 51):
         parcels_module._warn_unmapped_status_code(code)
     assert "no known mapping" not in caplog.text
 
