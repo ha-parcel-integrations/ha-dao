@@ -59,15 +59,20 @@ _STATUS_OK_CONFIRMED_CODES: dict[int, ParcelStatus] = {
 # `statusCode` values that override the `statusType` mapping, whatever type
 # carries them. 25 ("Indleveret i daoSHOP" — dropped off at a daoSHOP) arrives
 # as `STATUS_PROCESSING` but the parcel is already with DAO, awaiting transport
-# from the shop (issue #5), so it is `in_transit`, not `registered`.
+# from the shop (issue #5), so it is `in_transit`, not `registered`. 11
+# ("Ankommet til terminal") and 26 ("På vej til terminal") are ASSUMED the
+# same on their text alone: the account API's `statusType` for them was never
+# seen, the reporter's poll missed both overnight.
 _CONFIRMED_CODE_OVERRIDES: dict[int, ParcelStatus] = {
+    11: ParcelStatus.IN_TRANSIT,
     25: ParcelStatus.IN_TRANSIT,
+    26: ParcelStatus.IN_TRANSIT,
 }
 
 # `statusCode` values a real parcel has reported, so they need no warning:
 # 1 is `STATUS_PROCESSING` and 12 is `STATUS_IN_TRANSIT` (issue #5), 25 and 51
-# are the confirmed codes above.
-_CONFIRMED_STATUS_CODES = frozenset({"1", "12", "25", "51"})
+# are the confirmed codes above, and 11/26 are the assumed in-transit ones.
+_CONFIRMED_STATUS_CODES = frozenset({"1", "11", "12", "25", "26", "51"})
 
 # Directions seen on the wire. "IN" is the default for anything unrecognised
 # rather than silently dropping a parcel.

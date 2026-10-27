@@ -120,6 +120,15 @@ def test_map_parcel_status_code_25_dropped_off_at_shop_is_in_transit(caplog):
     assert "no known mapping" not in caplog.text
 
 
+def test_map_parcel_status_terminal_codes_are_in_transit():
+    """11 and 26 are assumed in transit on their text, whatever statusType."""
+    for code in (11, 26):
+        assert (
+            map_parcel_status("STATUS_PROCESSING", status_code=code)
+            == ParcelStatus.IN_TRANSIT
+        )
+
+
 def test_map_parcel_status_ok_code_51_does_not_warn(caplog):
     """A confirmed code never falls through to the ASSUMED-split warning."""
     map_parcel_status("STATUS_OK", status_code=51, pickup_point_id="PP1")
@@ -402,8 +411,8 @@ def test_normalize_pickup_point_id_without_resolved_object_is_none():
 
 
 def test_confirmed_status_codes_do_not_warn(caplog):
-    """Codes 1, 12, 25 and 51 are confirmed by real parcels — no mapping warning."""
-    for code in (1, 12, 25, 51):
+    """Codes 1, 11, 12, 25, 26 and 51 are known by real parcels — no mapping warning."""
+    for code in (1, 11, 12, 25, 26, 51):
         parcels_module._warn_unmapped_status_code(code)
     assert "no known mapping" not in caplog.text
 
