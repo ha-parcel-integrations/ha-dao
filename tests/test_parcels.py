@@ -402,9 +402,9 @@ def test_normalize_pickup_point_id_without_resolved_object_is_none():
 
 
 def test_confirmed_status_codes_do_not_warn(caplog):
-    """Codes 1 and 51 are confirmed by real parcels — no mapping warning."""
-    parcels_module._warn_unmapped_status_code(1)
-    parcels_module._warn_unmapped_status_code(51)
+    """Codes 1, 12, 25 and 51 are confirmed by real parcels — no mapping warning."""
+    for code in (1, 12, 25, 51):
+        parcels_module._warn_unmapped_status_code(code)
     assert "no known mapping" not in caplog.text
 
 

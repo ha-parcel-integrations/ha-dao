@@ -149,7 +149,8 @@ degrades that one parcel to no history / no pickup point rather than failing
 the poll (the per-parcel tripwire below), and the first time history actually
 produces data it fires a one-shot `WARNING`
 (`parcels._warn_unverified_history`), same standing as the `STATUS_OK` split
-above. `statusCode` 1 (`STATUS_PROCESSING`), 25 and 51 are confirmed and never warn.
+above. `statusCode` 1 (`STATUS_PROCESSING`), 12 (`STATUS_IN_TRANSIT`), 25 and 51 are
+confirmed and never warn.
 Code 25 ("Indleveret i daoSHOP", issue #5) arrives as `STATUS_PROCESSING` yet
 maps to `in_transit` via `_CONFIRMED_CODE_OVERRIDES`, which beats the type map.
 

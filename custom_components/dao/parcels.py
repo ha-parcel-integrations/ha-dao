@@ -65,8 +65,9 @@ _CONFIRMED_CODE_OVERRIDES: dict[int, ParcelStatus] = {
 }
 
 # `statusCode` values a real parcel has reported, so they need no warning:
-# 1 is `STATUS_PROCESSING` (issue #5), 25 and 51 are the confirmed codes above.
-_CONFIRMED_STATUS_CODES = frozenset({"1", "25", "51"})
+# 1 is `STATUS_PROCESSING` and 12 is `STATUS_IN_TRANSIT` (issue #5), 25 and 51
+# are the confirmed codes above.
+_CONFIRMED_STATUS_CODES = frozenset({"1", "12", "25", "51"})
 
 # Directions seen on the wire. "IN" is the default for anything unrecognised
 # rather than silently dropping a parcel.
