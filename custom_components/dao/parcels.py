@@ -53,6 +53,7 @@ _STATUS_MAP: dict[str, ParcelStatus] = {
 # as delivered, not "awaiting pickup" — the presence of a pickup point alone
 # is not a reliable signal for "still waiting there".
 _STATUS_OK_CONFIRMED_CODES: dict[int, ParcelStatus] = {
+    32: ParcelStatus.AT_PICKUP_POINT,
     51: ParcelStatus.DELIVERED,
 }
 
@@ -70,9 +71,10 @@ _CONFIRMED_CODE_OVERRIDES: dict[int, ParcelStatus] = {
 }
 
 # `statusCode` values a real parcel has reported, so they need no warning:
-# 1 is `STATUS_PROCESSING` and 12 is `STATUS_IN_TRANSIT` (issue #5), 25 and 51
-# are the confirmed codes above, and 11/26 are the assumed in-transit ones.
-_CONFIRMED_STATUS_CODES = frozenset({"1", "11", "12", "25", "26", "51"})
+# 1 is `STATUS_PROCESSING`, 12 is `STATUS_IN_TRANSIT` and 32 ("Klar til
+# afhentning" — ready for pickup) is `STATUS_OK` (issue #5), 25 and 51 are the
+# confirmed codes above, and 11/26 are the assumed in-transit ones.
+_CONFIRMED_STATUS_CODES = frozenset({"1", "11", "12", "25", "26", "32", "51"})
 
 # Directions seen on the wire. "IN" is the default for anything unrecognised
 # rather than silently dropping a parcel.

@@ -157,25 +157,25 @@ def delivered_sample(tracking_id: str = TRACKING_ID) -> dict:
     return parcel(
         "STATUS_OK",
         tracking_id=tracking_id,
-        status_code=32,
+        status_code=49,
         status_text="Delivered",
         timestamp="2026-04-29T13:12:42Z",
         events=[
             status_event("STATUS_PROCESSING", "2026-04-24T09:00:00Z", 1, "Announced"),
             status_event("STATUS_IN_TRANSIT", "2026-04-26T09:00:00Z", 48, "In transit"),
             status_event("STATUS_IN_TRANSIT", "2026-04-28T09:00:00Z", 48, "In transit"),
-            status_event("STATUS_OK", "2026-04-29T13:12:42Z", 32, "Delivered"),
+            status_event("STATUS_OK", "2026-04-29T13:12:42Z", 49, "Delivered"),
         ],
     )
 
 
 def pickup_sample(tracking_id: str = TRACKING_ID) -> dict:
-    """STATUS_OK with ``pickupPointId`` set — the ASSUMED "at_pickup_point" branch."""
+    """STATUS_OK, statusCode 32, ``pickupPointId`` set — CONFIRMED "at_pickup_point"."""
     return parcel(
         "STATUS_OK",
         tracking_id=tracking_id,
         status_code=32,
-        status_text="Ready for collection",
+        status_text="Klar til afhentning",
         pickup_point_id=PICKUP_POINT_ID,
         pickup_point=pickup_point_response(),
     )

@@ -78,21 +78,21 @@ def test_map_parcel_status_confirmed_members(status_type, expected):
 
 def test_map_parcel_status_ok_without_pickup_point_is_delivered():
     assert (
-        map_parcel_status("STATUS_OK", status_code=32, pickup_point_id=None)
+        map_parcel_status("STATUS_OK", status_code=49, pickup_point_id=None)
         == ParcelStatus.DELIVERED
     )
 
 
 def test_map_parcel_status_ok_with_pickup_point_is_at_pickup_point():
     assert (
-        map_parcel_status("STATUS_OK", status_code=32, pickup_point_id="PP1")
+        map_parcel_status("STATUS_OK", status_code=49, pickup_point_id="PP1")
         == ParcelStatus.AT_PICKUP_POINT
     )
 
 
 def test_map_parcel_status_ok_warns_once_ever(caplog):
-    map_parcel_status("STATUS_OK", status_code=32, pickup_point_id=None)
-    map_parcel_status("STATUS_OK", status_code=32, pickup_point_id="PP1")
+    map_parcel_status("STATUS_OK", status_code=49, pickup_point_id=None)
+    map_parcel_status("STATUS_OK", status_code=49, pickup_point_id="PP1")
     assert caplog.text.count("unverified assumption") == 1
     assert "issues/new" in caplog.text
 
@@ -127,6 +127,16 @@ def test_map_parcel_status_terminal_codes_are_in_transit():
             map_parcel_status("STATUS_PROCESSING", status_code=code)
             == ParcelStatus.IN_TRANSIT
         )
+
+
+def test_map_parcel_status_ok_code_32_is_at_pickup_point_without_warning(caplog):
+    """Confirmed by issue #5: STATUS_OK, statusCode 32 ("Klar til afhentning")
+    is ready for pickup — no ASSUMED-split warning."""
+    assert (
+        map_parcel_status("STATUS_OK", status_code=32, pickup_point_id="PP1")
+        == ParcelStatus.AT_PICKUP_POINT
+    )
+    assert "unverified assumption" not in caplog.text
 
 
 def test_map_parcel_status_ok_code_51_does_not_warn(caplog):

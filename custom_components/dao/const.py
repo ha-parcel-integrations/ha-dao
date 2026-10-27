@@ -42,8 +42,10 @@ KNOWN_CAPABILITIES = frozenset(
 #
 # "weight" and "dimensions" are confirmed absent from every tracking and
 # pickup-point model DAO's own app consumes — not merely unclaimed pending
-# confirmation. A delivery ETA field exists on the wire (``dueDate`` /
-# ``pickup.date``) but neither is confirmed to be a bounded delivery window,
+# confirmation. ``dueDate`` is the last day to collect a parcel from its
+# pickup point (issue #5: 2026-11-03, seven days after "Klar til
+# afhentning"), not a delivery window. ``pickup.date`` is still unseen, so
+# a delivery window is not confirmed either,
 # and the one field name that did look window-shaped (``deliveryAt``)
 # belongs to the outbound booking flow, not to anything read back off
 # tracking — so "delivery_window" stays unclaimed until a real inbound
