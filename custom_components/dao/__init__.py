@@ -82,9 +82,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: DAOConfigEntry) -> bool:
         await session.close()
         raise
 
-    # No entry.add_update_listener: the options flow calls
-    # async_schedule_reload itself. Combining an update listener with a
-    # reload-on-update flow is deprecated and becomes an error in HA 2026.12+.
+    # No entry.add_update_listener: the options flow is an
+    # OptionsFlowWithReload, which may not be combined with one.
     return True
 
 

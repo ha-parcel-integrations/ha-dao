@@ -7,7 +7,11 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 import aiohttp
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult, OptionsFlow
+from homeassistant.config_entries import (
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlowWithReload,
+)
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import section
 from homeassistant.helpers import selector
@@ -135,14 +139,15 @@ class DAOConfigFlow(ConfigFlow, domain=DOMAIN):
         return await self.async_step_user()
 
 
-class DAOOptionsFlow(OptionsFlow):
+class DAOOptionsFlow(OptionsFlowWithReload):
     """Match the suite's delivered-retention and history options."""
 
     async def async_step_init(self, user_input=None):
         """Show and save the delivered-retention and history options."""
         if user_input is not None:
             delivered, history = user_input["delivered"], user_input["history"]
-            self.hass.config_entries.async_schedule_reload(self.config_entry.entry_id)
+            # OptionsFlowWithReload reloads once the new options are saved; a
+            # reload scheduled here would start before that, on the old ones.
             return self.async_create_entry(
                 title="",
                 data={
