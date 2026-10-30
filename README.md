@@ -125,6 +125,7 @@ Standard HA removal applies: **Settings → Devices & Services → DAO → ⋮ �
 | `sensor.dao_delivered_parcels` | Recently delivered parcels (see the retention option) |
 | `sensor.dao_outgoing_parcels` | Number of active parcels you sent (DAO's `bound: "OUT"`) |
 | `sensor.dao_outgoing_delivered_parcels` | Recently delivered outgoing parcels |
+| `calendar.dao_deliveries` | Read-only calendar of expected deliveries, no extra API calls |
 | `sensor.dao_last_successful_update` | Diagnostic: when DAO was last polled successfully |
 
 A delivered parcel moves from its per-parcel sensor to the delivered sensor automatically. Outgoing parcels (ones you sent, not received) never appear on `sensor.dao_incoming_parcels` — they are tracked separately on the two `outgoing` sensors above.
@@ -182,7 +183,7 @@ logger:
 ## Troubleshooting
 
 - **A parcel shows `unknown`** — DAO has not scanned it yet, or reports a status this integration does not map yet.
-- **A status logs "Unrecognised DAO status"** — please [open an issue](https://github.com/ha-parcel-integrations/ha-dao/issues/new) with the logged line so the mapping can be extended.
+- **A status logs "Unrecognised DAO status"** — please [open an issue](https://github.com/ha-parcel-integrations/ha-dao/issues/new?template=unrecognised_status.yml) with the logged line so the mapping can be extended.
 - **Setup asks you to sign in again out of nowhere** — DAO's session eventually expires if Home Assistant has been offline for a long time, or the account's password changed. Re-running setup signs you back in; your parcels and history are unaffected.
 
 ## Related integrations
