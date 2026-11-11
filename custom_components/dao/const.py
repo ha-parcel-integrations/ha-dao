@@ -68,8 +68,14 @@ CAPABILITIES_BY_VARIANT = {
 CAPABILITIES = CAPABILITIES_BY_VARIANT["Account"]
 
 # Fields not confirmed yet — the docs site shows them as "awaiting data".
-# Move a field into the declaration above once a real parcel shows it.
-PENDING_CAPABILITIES = frozenset({"delivery_window"})
+# Move a field into the declaration above once a real parcel shows it. Keyed
+# per source, as the docs site requires alongside CAPABILITIES_BY_VARIANT:
+# neither route has shown a bounded delivery window.
+PENDING_CAPABILITIES_BY_VARIANT = {
+    "Account": frozenset({"delivery_window"}),
+    "Tracking codes": frozenset({"delivery_window"}),
+}
+PENDING_CAPABILITIES = PENDING_CAPABILITIES_BY_VARIANT["Account"]
 
 # Which backend a config entry talks to. An entry created before the public
 # barcode source existed carries no CONF_SOURCE at all, so **every** read
