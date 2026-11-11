@@ -5,7 +5,7 @@ import sys
 import pytest
 from pytest_homeassistant_custom_component.plugins import hass  # noqa: F401
 
-from custom_components.dao import parcels
+from custom_components.dao import status
 
 
 @pytest.fixture(autouse=True)
@@ -17,11 +17,11 @@ def auto_enable_custom_integrations(enable_custom_integrations):
 def reset_one_shot_warnings():
     """Clear the "already warned this session" set between tests.
 
-    ``parcels._unmapped_statuses_logged`` is module-level, so without this a
-    test's one-shot-warning assertion would depend on which test already
-    triggered that status code first.
+    ``status.py``'s flags are module-level (one warning per HA session, not
+    per poll), so without this a test's one-shot-warning assertion would
+    depend on which test already triggered that status code first.
     """
-    parcels._unmapped_statuses_logged.clear()
+    status.reset_one_shot_warnings()
 
 
 if sys.platform == "win32":

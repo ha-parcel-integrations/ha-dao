@@ -6,12 +6,15 @@ Ready-to-paste Home Assistant snippets for the DAO integration.
 |---|---|
 | [`automations/`](automations/) | YAML automations — copy them into your `automations.yaml` or paste them into the Automation editor in **raw editor** mode. |
 
-Parcels come from your DAO account, so there is nothing to register
-by hand: whatever the account knows about shows up automatically.
+How parcels get in depends on which source you set up. With the **account**
+source there is nothing to register by hand — whatever the account knows
+about shows up automatically. With the keyless **tracking-code** source you
+add codes yourself, by hand or with `dao.track_parcel`
+([example](automations/track_parcel_from_a_dashboard.yaml)).
 
-All examples assume a single DAO account. Adjust entity IDs to match
-yours; with more than one account configured, every entity ID carries the
-account name.
+All examples assume a single DAO entry. Adjust entity IDs to match yours;
+with more than one entry configured, every entity ID carries that entry's
+name.
 
 ## Events used in the examples
 

@@ -9,9 +9,17 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.dao.api import DAOApiError, DAOAuthError
-from custom_components.dao.const import CONF_ACCOUNT_SUBJECT, CONF_REFRESH_TOKEN, DOMAIN
+from custom_components.dao.const import (
+    CONF_ACCOUNT_SUBJECT,
+    CONF_BARCODE,
+    CONF_PARCELS,
+    CONF_REFRESH_TOKEN,
+    CONF_SOURCE,
+    DOMAIN,
+    SOURCE_TRACKING,
+)
 
-from .payloads import ACTIVE_CODE, SECOND_CODE, in_transit_sample
+from .account.payloads import ACTIVE_CODE, SECOND_CODE, in_transit_sample
 
 SUBJECT = "subject-1"
 CLIENT = "custom_components.dao.api.DAOApiClient"
@@ -191,3 +199,141 @@ async def test_per_parcel_sensor_spawn_and_remove(hass):
             )
             is None
         )
+
+
+# ---------------------------------------------------------------------------
+# the keyless tracking source
+# ---------------------------------------------------------------------------
+
+TRACKING_CLIENT = "custom_components.dao.tracking.api.DAOTrackingApiClient"
+
+
+def _tracking_entry(codes: list[str] | None = None) -> MockConfigEntry:
+    return MockConfigEntry(
+        domain=DOMAIN,
+        title="DAO (tracking codes)",
+        unique_id=SOURCE_TRACKING,
+        data={CONF_SOURCE: SOURCE_TRACKING},
+        options={CONF_PARCELS: [{CONF_BARCODE: c} for c in (codes or [ACTIVE_CODE])]},
+    )
+
+
+def _tracking_payload() -> dict:
+    return {
+        "barcode": ACTIVE_CODE,
+        "latest_event": {"description": "Sorteret"},
+        "events": [
+            {
+                "date": {"day": "26. oktober", "year": "2026", "time": "08:00"},
+                "description": "Sorteret",
+                "raw": {"tidspunkt": "2026-10-26T08:00:00", "haendelse": 12},
+            }
+        ],
+    }
+
+
+async def test_a_tracking_entry_sets_up_without_any_credentials(hass):
+    entry = _tracking_entry()
+    entry.add_to_hass(hass)
+
+    with patch(
+        f"{TRACKING_CLIENT}.async_get_parcel",
+        new=AsyncMock(return_value=_tracking_payload()),
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.LOADED
+    # The services exist only once a tracking entry is loaded.
+    assert hass.services.has_service(DOMAIN, "track_parcel")
+
+    registry = er.async_get(hass)
+    assert registry.async_get_entity_id(
+        "sensor", DOMAIN, f"{entry.entry_id}_{ACTIVE_CODE}"
+    )
+    # Recipient-side only: no outgoing sensors at all.
+    assert not registry.async_get_entity_id(
+        "sensor", DOMAIN, f"{entry.entry_id}_outgoing_parcels"
+    )
+
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert not hass.services.has_service(DOMAIN, "track_parcel")
+
+
+async def test_an_account_entry_registers_no_services(hass):
+    entry = _entry()
+    entry.add_to_hass(hass)
+
+    with (
+        patch(f"{CLIENT}.async_refresh", new=AsyncMock(return_value=None)),
+        patch(
+            f"{CLIENT}.async_get_parcels",
+            new=AsyncMock(return_value=[in_transit_sample()]),
+        ),
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert not hass.services.has_service(DOMAIN, "track_parcel")
+
+
+async def test_an_options_change_refreshes_a_tracking_entry(hass):
+    """The update listener is how a resumed poll picks up a new code."""
+    entry = _tracking_entry()
+    entry.add_to_hass(hass)
+
+    with patch(
+        f"{TRACKING_CLIENT}.async_get_parcel",
+        new=AsyncMock(return_value=_tracking_payload()),
+    ) as lookup:
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        before = lookup.await_count
+
+        hass.config_entries.async_update_entry(
+            entry,
+            options={
+                **entry.options,
+                CONF_PARCELS: [
+                    {CONF_BARCODE: ACTIVE_CODE},
+                    {CONF_BARCODE: SECOND_CODE},
+                ],
+            },
+        )
+        await hass.async_block_till_done()
+
+    assert lookup.await_count > before
+    assert entry.state is ConfigEntryState.LOADED
+
+
+async def test_unloading_one_tracking_entry_keeps_nothing_behind(hass):
+    """There is only ever one tracking hub, so its services go with it."""
+    entry = _tracking_entry()
+    entry.add_to_hass(hass)
+    account = _entry()
+    account.add_to_hass(hass)
+
+    with (
+        patch(
+            f"{TRACKING_CLIENT}.async_get_parcel",
+            new=AsyncMock(return_value=_tracking_payload()),
+        ),
+        patch(f"{CLIENT}.async_refresh", new=AsyncMock(return_value=None)),
+        patch(
+            f"{CLIENT}.async_get_parcels",
+            new=AsyncMock(return_value=[in_transit_sample()]),
+        ),
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+        # Setting up the component brings up every DAO entry, the account
+        # one included.
+        assert account.state is ConfigEntryState.LOADED
+        assert hass.services.has_service(DOMAIN, "track_parcel")
+        assert await hass.config_entries.async_unload(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert not hass.services.has_service(DOMAIN, "track_parcel")
+    assert account.state is ConfigEntryState.LOADED

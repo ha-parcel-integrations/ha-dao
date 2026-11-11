@@ -50,27 +50,58 @@ KNOWN_CAPABILITIES = frozenset(
 # belongs to the outbound booking flow, not to anything read back off
 # tracking — so "delivery_window" stays unclaimed until a real inbound
 # parcel settles what these fields actually mean.
-CAPABILITIES = frozenset({"pickup_point", "url", "history"})
+# Two sources, one dict: the keyless public barcode lookup and the signed-in
+# account inbox are genuinely different backends, so each declares its own
+# set rather than having a future divergence silently intersected away or
+# overclaimed. They are identical today — both confirmed on real parcels —
+# which is exactly why the dict is cheap to keep correct now.
+#
+# Key order is display order on the docs site's comparison table; each key is
+# labelled as the integration's own source picker words it.
+CAPABILITIES_BY_VARIANT = {
+    "Account": frozenset({"pickup_point", "url", "history"}),
+    "Tracking codes": frozenset({"pickup_point", "url", "history"}),
+}
+
+# The docs site reads the flat name too; keep it aliased rather than
+# duplicated.
+CAPABILITIES = CAPABILITIES_BY_VARIANT["Account"]
 
 # Fields not confirmed yet — the docs site shows them as "awaiting data".
 # Move a field into the declaration above once a real parcel shows it.
 PENDING_CAPABILITIES = frozenset({"delivery_window"})
 
-# If this carrier ever grows a second backend with a genuinely different
-# payload shape (a country-specific API, not just a config option), replace
-# the single CAPABILITIES above with a CAPABILITIES_BY_VARIANT dict instead:
-#
-#   CAPABILITIES_BY_VARIANT = {
-#       "Germany": frozenset({"pickup_point", "url", "history"}),
-#       "Other": frozenset({"weight", "dimensions", "delivery_window",
-#                            "pickup_point", "url", "history"}),
-#   }
-#
-# Key order is display order on the docs site's comparison table; label each
-# key exactly as the carrier's own country/backend selector does. The docs
-# site's generator accepts either shape — don't declare both. Do not add this
-# preemptively: a single-backend carrier (the common case) keeps the flat
-# CAPABILITIES above.
+# Which backend a config entry talks to. An entry created before the public
+# barcode source existed carries no CONF_SOURCE at all, so **every** read
+# must default to SOURCE_ACCOUNT — that default is the migration, and there
+# is no entry version bump.
+CONF_SOURCE = "source"
+SOURCE_ACCOUNT = "account"
+SOURCE_TRACKING = "tracking"
+
+# Tracking-code source: the user's own list of codes, in entry options.
+CONF_PARCELS = "parcels"
+CONF_BARCODE = "barcode"
+# The user-facing field name, in services and the options form. "Tracking
+# code" is how the whole suite words it, even where the carrier says
+# "barcode"; the stored key stays CONF_BARCODE so no entry migration is
+# involved.
+CONF_TRACKING_CODE = "tracking_code"
+
+# The public tracking page, which hands out both the lookup endpoint and the
+# request nonce. Also the user-facing deep link (TRACKING_URL below).
+DAO_TRACKING_PAGE_URL = "https://dao.as/find-din-pakke/"
+
+# How many public lookups run concurrently in one refresh. Lower than the
+# account source's enrichment concurrency on purpose: this route polices its
+# traffic and answers a rejected caller with a ban rather than a throttle.
+TRACKING_FETCH_CONCURRENCY = 2
+
+# Backoff after DAO's bot check rejects a lookup. Deliberately an order of
+# magnitude longer than the 429 backoff: a ban is not a rate limit, and
+# retrying it on the normal cadence is what would keep it in place.
+BAN_BACKOFF_START_SECONDS = 3600
+BAN_BACKOFF_CAP_SECONDS = 21600
 
 # OAuth constants for DAO's manual authorization-code + PKCE flow
 # (config_flow.py) and its bearer-authenticated tracking endpoint (api.py).

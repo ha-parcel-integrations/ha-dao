@@ -2,6 +2,13 @@
   "title": "DAO",
   "config": {
     "step": {
+      "user": {
+        "title": "DAO instellen",
+        "menu_options": {
+          "account": "DAO-account (pakketten verschijnen automatisch)",
+          "tracking": "Trackingcodes (geen account nodig)"
+        }
+      },
       "dao": {
         "title": "DAO instellen",
         "description": "Open deze link in een desktopbrowser en log in bij DAO: {authorize_url}\n\nEen desktopbrowser opent de uiteindelijke daoapp://-omleiding mogelijk niet. Dat is normaal. Kopieer de volledige URL uit de adresbalk en plak hem hieronder. Zie de [stapsgewijze uitleg]({docs_url}). Home Assistant ontvangt nooit je wachtwoord.",
@@ -23,7 +30,7 @@
       "paste_full_url": "DAO kon geen code of state in die tekst vinden — plak de volledige adresbalk-URL na het inloggen, niet alleen de code."
     },
     "abort": {
-      "already_configured": "Dat DAO-account is al ingesteld.",
+      "already_configured": "De trackingcode-bron van DAO is al ingesteld. Voeg codes daaraan toe in plaats van DAO opnieuw toe te voegen.",
       "reauth_successful": "DAO is opnieuw geverifieerd.",
       "wrong_account": "Deze gegevens horen bij een ander DAO-account. Meld je aan met het account waarvoor deze integratie is ingesteld."
     }
@@ -53,6 +60,27 @@
               "include_history": "Voegt per pakket een geschiedenisattribuut toe met elke statusupdate (tijdstip, status, oorspronkelijke tekst). Standaard uit."
             }
           }
+        },
+        "menu_options": {
+          "parcels": "Parcels",
+          "settings": "Settings"
+        }
+      },
+      "parcels": {
+        "title": "Pakketten beheren",
+        "data": {
+          "tracking_codes": "Trackingcodes"
+        },
+        "data_description": {
+          "tracking_codes": "De DAO-trackingcode(s), zoals vermeld op de verzendbevestiging of het pakketlabel. Je hebt er geen account voor nodig."
+        }
+      },
+      "settings": {
+        "title": "Instellingen",
+        "data": {
+          "delivered_filter_type": "Bezorgde pakketten: filteren op",
+          "delivered_filter_amount": "Bezorgde pakketten: aantal",
+          "include_history": "Statusgeschiedenis opnemen"
         }
       }
     }
@@ -115,6 +143,28 @@
       "outgoing_delivered_parcels": {
         "name": "Uitgaande bezorgde pakketten",
         "unit_of_measurement": "pakketten"
+      }
+    }
+  },
+  "services": {
+    "track_parcel": {
+      "name": "Pakket volgen",
+      "description": "Begin een DAO-pakket te volgen op trackingcode. Vereist de trackingcode-bron van DAO, geen account.",
+      "fields": {
+        "tracking_code": {
+          "name": "Trackingcode",
+          "description": "De DAO-trackingcode."
+        }
+      }
+    },
+    "untrack_parcel": {
+      "name": "Pakket niet meer volgen",
+      "description": "Stop met het volgen van een DAO-pakket op trackingcode.",
+      "fields": {
+        "tracking_code": {
+          "name": "Trackingcode",
+          "description": "De DAO-trackingcode die je niet meer wilt volgen."
+        }
       }
     }
   }

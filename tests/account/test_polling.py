@@ -250,7 +250,10 @@ async def test_failed_poll_drops_the_overnight_interval(hass):
     noon = datetime(2026, 1, 15, 12, tzinfo=UTC)
     with (
         patch.object(coordinator, "_async_poll", side_effect=TimeoutError),
-        patch("custom_components.dao.coordinator.dt_util.now", return_value=noon),
+        patch(
+            "custom_components.dao.account.coordinator.dt_util.now",
+            return_value=noon,
+        ),
         pytest.raises(TimeoutError),
     ):
         await coordinator._async_update_data()
