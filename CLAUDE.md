@@ -39,119 +39,13 @@ you act in one of these areas:
   status/code**, it needs an `awaiting_pickup` sensor — see *Parcel contract*
   in `CONVENTIONS.md`. Say "pickup point", not "ServicePoint"/"parcel
   shop"/"locker", for the generic concept. `ha-dhl-nl`, `ha-dpd`, `ha-gls`,
-  `ha-inpost` are reference implementations; both DAO sources reach it (codes 32 and the
-  account route's `STATUS_OK` split), and the `awaiting_pickup` sensor is
-  shared.
+  `ha-inpost` are reference implementations; `dao` here does not
+  demonstrate it yet.
 
 ## Carrier-specific notes
 
-**Two sources in one domain — `tracking/` and `account/` subpackages.** DAO
-serves two genuinely different backends: the keyless public barcode lookup
-behind `dao.as/find-din-pakke/`, and the signed-in account inbox that
-discovers its own parcels. Each owns its client, coordinator and normaliser
-under `custom_components/dao/<source>/`; `api.py`, `coordinator.py` and
-`parcels.py` at package root are **re-export shims** kept so the pre-split
-import paths still resolve (note the direction: for DAO they point at
-`account/`, the original source — the mirror image of `ha-bpost`, whose shims
-point at `tracking/`). `tests/test_compat_imports.py` guards them. Tests
-mirror the split (`tests/account/`, `tests/tracking/`), with the
-source-agnostic platform tests at the top level.
-
-**An entry's source is `entry.data[CONF_SOURCE]` (`account` / `tracking`),
-read through `__init__.entry_source()`.** An entry created before the tracking source existed has no
-`CONF_SOURCE` at all, so **every** read defaults to `SOURCE_ACCOUNT` — that
-default *is* the migration, and there is no entry version bump. Note this is
-the opposite default to bpost's, where the pre-split source was the tracker.
-Always go through `entry_source()` rather than re-reading the key, so the
-default cannot drift between call sites.
-
-**What is shared lives one level up, and is shared on purpose:**
-- **`status.py` — one status vocabulary.** The public route's
-  `events[].raw.haendelse` is the *same code space* as the account route's
-  `lastEvent.status.statusCode`, confirmed on a real parcel whose timeline
-  appeared on both. So the code tables and every one-shot warning flag live
-  here, and `TRACKING_CODE_MAP`'s values are exactly the statuses the account
-  route already derives for those codes — one parcel can never be reported
-  differently depending on which source saw it. Never add a code to one side
-  only.
-- **`polling.py` — the dynamic-polling algorithm**, with its two documented
-  tiering models: `account_tier_minutes` (never stops) and
-  `tracked_tier_minutes` (`None` = stop entirely). The account coordinator
-  aliases the old private names (`_hottest_tier_minutes` and friends) to
-  these; `tests/account/test_polling.py` still imports them from the shim.
-- **`events.py` — the HA-bus contract**, both the incoming set and the
-  sender-only outgoing pair, so the two coordinators cannot drift on it.
-- `tracking/parcels.py` re-uses `account/parcels.py`'s generic list helpers
-  (`sort_parcels_by_ts`, `apply_delivered_filter`, `parse_iso`,
-  `tracking_url`) rather than reimplementing them — the same arrangement
-  bpost uses. Normalisation itself is **not** shared: each source shapes its
-  own payload and carries its own warning net.
-
-**`CAPABILITIES_BY_VARIANT`, not `CAPABILITIES`** — one frozenset per source.
-They are identical today (`pickup_point`, `url`, `history`); keep the dict, it
-makes a future divergence a one-line change instead of a silent intersection.
-`CAPABILITIES` stays aliased to `Account` for the docs-site table.
-
-### The keyless tracking source
-
-Public, keyless, and the answer to "track a DAO parcel without an account"
-(issue #16). Endpoint mechanics are in the private research notes, not here.
-Integration-level decisions:
-
-- **The page hands out the endpoint and the nonce**, read once per client and
-  cached (`tracking/api.py`'s `extract_page_config`). Reading one config
-  object is **not** HTML scraping for parcel data — the parcel itself comes
-  back as JSON — so no scraping exception is needed or claimed. A changed
-  page is an API failure, never a "parcel not found".
-- **`{"found": false}` is the normal unknown-code answer**, not an error. It
-  still produces a full canonical parcel (`status: unknown`), so a code the
-  user just added gets a sensor immediately instead of nothing.
-- **A ban is not a rate limit.** DAO's own page branches on `403` and on
-  `429` + `code: dao_bot_check_banned`, showing no retry button for the
-  latter. `DAOTrackingBannedError` therefore fails the whole refresh with a
-  backoff starting at **one hour** and doubling to six, while a plain 429
-  keeps the suite's 60 s → 1 h backoff. A `403` re-reads the page once first
-  (a stale nonce is the one failure a fresh read fixes) and is treated as a
-  ban only on the second rejection. Per-code failures stay per-code; a ban
-  deliberately does not, because it will hit every other code too.
-- **Never send, solve, fake or work around the Turnstile challenge.** The
-  browser sends an `X-Turnstile-Token` header; this client sends none and
-  treats a challenge response as a transport failure.
-  `test_no_turnstile_header_is_ever_sent` guards that.
-- **Event timestamps are reconstructed defensively.** `raw.tidspunkt` is
-  Europe/Copenhagen local time and its exact string shape rests on a single
-  capture — DAO's own page never reads `raw`, so there is no second witness.
-  `event_timestamp()` tries ISO, then a day-first datetime, then a clock time
-  dated from the localised `date` block (a closed 24-name Danish/English
-  month table). Anything else keeps **no** timestamp and is dropped from
-  history: an event is never dated from "today", because a wrong date is
-  worse than a missing entry. The two reconstructing branches fire a one-shot
-  WARNING.
-- **`pickup` reads the `pickup` object, not just the status** — the public
-  route names the daoSHOP as soon as a parcel is routed to one (seen at code
-  23, "på vej til daoSHOP"), which is what the contract's "bound for a
-  pickup point" means. The account source still derives it from the status
-  alone; widening that one is a separate change, tracked in `TODO.md`.
-- **`raw` is the whole payload**, per the suite's rule — including
-  `sender_masked` and `recipient`. Privacy is diagnostics' job, and
-  `TO_REDACT` covers them; asterisk-masking is not treated as a boundary.
-  This overrides the older research-note line about not retaining a full raw
-  payload, exactly as it did for bpost.
-- **Recipient-side only.** `outgoing`/`delivered_outgoing` stay empty for
-  good, `sensor.py` creates no outgoing sensors for a tracking entry, and
-  the outgoing events are never fired from this source.
-- **One tracking entry per install** (`unique_id = "tracking"`), which is
-  what lets `dao.track_parcel` take a bare code with no "which hub"
-  argument. Account entries are unaffected and stay multi-account.
-- **The services belong to this source**: registered when a tracking entry
-  loads, removed when the last one unloads, never registered by an
-  account-only install — so `dao.track_parcel` missing from Developer tools
-  is itself the signal that the keyless source is not set up.
-
-### The account source
-
-DAO's account route: one signed-in account discovers whatever DAO's own
-app/site already links to it, with no per-parcel code entry.
+DAO is account-based: there is no per-parcel tracking-code entry, one signed-in
+account discovers whatever DAO's own app/site already links to it.
 
 **Why not `config_entry_oauth2_flow`.** Neither of DAO's two public Keycloak
 clients accepts a Home Assistant redirect URI (both `daoapp://auth-callback`
@@ -206,7 +100,7 @@ the entry, so pasting a different DAO account's login aborts with
 `wrong_account` instead of silently rebinding an existing entry's sensors to
 someone else's parcels.
 
-**Status mapping (`status.py`, applied by `account/parcels.py`).** `_STATUS_MAP` covers DAO's confirmed
+**Status mapping (`parcels.py`).** `_STATUS_MAP` covers DAO's confirmed
 six-value `statusType` enum. `STATUS_OK` is not in that map — it first checks
 `_STATUS_OK_CONFIRMED_CODES` (a real `statusCode` → `ParcelStatus` override),
 and only falls back to splitting on `delivery.pickupPointId` into `delivered`
@@ -304,13 +198,6 @@ decisions. Changes apply without a restart. Two models, **do not mix them**:
   calls `async_request_refresh()`, so added/removed parcel sensors appear
   immediately (this is also the resume path after polling has fully
   suspended — see "Dynamic polling" below).
-DAO runs **both**, one per entry, and they must not be mixed within an entry:
-`config_flow.async_get_options_flow` returns `DAOTrackingOptionsFlow` (a plain
-`OptionsFlow`, menu of `Parcels`/`Settings`) for a tracking entry and
-`DAOOptionsFlow` (`OptionsFlowWithReload`, one sectioned form) for an account
-entry, and `__init__.py` registers the update listener for tracking entries
-only.
-
 - **Account-based carriers** make the options flow an `OptionsFlowWithReload`
   and register **no** update listener (the two may not be combined). Never call
   `async_schedule_reload` from the submit instead: that reload starts before the
@@ -352,17 +239,15 @@ repo's own `CLAUDE.md` — not a generator flag.
 
 | File | Carrier-specific? |
 |---|---|
-| `account/client.py`, `tracking/api.py` (one HTTP client + error types per source; the root `api.py` is a shim) | **yes** |
-| `status.py` (the shared code vocabulary + one-shot warnings) | **yes** |
-| `polling.py` / `events.py` (the shared polling algorithm and bus contract) | no |
+| `api.py` (HTTP client, error types; `account/` and `tracking/` packages instead when a repo has two sources) | **yes** |
 | `const.py` (domain, URLs, `ParcelStatus`, option keys) | partly (URLs) |
-| `account/parcels.py`, `tracking/parcels.py` (`normalize_*`, history, sort, filters — pure, no I/O; the root `parcels.py` is a shim) | partly (each `normalize_*`) |
+| `parcels.py` (status map, `normalize_parcel`, history, sort, filters — pure, no I/O) | partly (the status map, `normalize_parcel`) |
 | `coordinator.py` (fetch, cache, event firing) | mostly not |
 | `config_flow.py` | partly (code validation) |
 | `sensor.py` / `button.py` / `calendar.py` / `device_trigger.py` | no |
 | `device.py` (shared device-info helper) | no |
 | `diagnostics.py` | partly (`TO_REDACT`) |
-| `services.py` (`track_parcel` / `untrack_parcel`, the tracking source only) | no |
+| `services.py` (`track_parcel` / `untrack_parcel`, account-less only) | no |
 
 `parcels.py` is deliberately free of I/O and HA objects so the per-carrier part
 stays unit-testable without Home Assistant. Config: `ConfigEntry.runtime_data`

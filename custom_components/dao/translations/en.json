@@ -2,13 +2,6 @@
   "title": "DAO",
   "config": {
     "step": {
-      "user": {
-        "title": "Set up DAO",
-        "menu_options": {
-          "account": "DAO account (parcels appear by themselves)",
-          "tracking": "Tracking codes (no account needed)"
-        }
-      },
       "dao": {
         "title": "Set up DAO",
         "description": "Open this link in a desktop browser and sign in at DAO: {authorize_url}\n\nA desktop browser may not open the final daoapp:// redirect. That is expected. Copy its complete URL from the address bar and paste it below. See the [step-by-step instructions]({docs_url}). Home Assistant never receives your password.",
@@ -30,7 +23,7 @@
       "paste_full_url": "DAO could not find a code or state in that text — paste the whole address-bar URL after signing in, not just the code."
     },
     "abort": {
-      "already_configured": "DAO's tracking-code source is already set up. Add codes to it instead of adding DAO again.",
+      "already_configured": "That DAO account is already set up.",
       "reauth_successful": "DAO was reauthenticated successfully.",
       "wrong_account": "Those credentials are for a different DAO account. Sign in with the account this entry was set up for."
     }
@@ -60,27 +53,6 @@
               "include_history": "Add a per-parcel history attribute listing each status update (timestamp, status, original text). Off by default."
             }
           }
-        },
-        "menu_options": {
-          "parcels": "Parcels",
-          "settings": "Settings"
-        }
-      },
-      "parcels": {
-        "title": "Manage parcels",
-        "data": {
-          "tracking_codes": "Tracking codes"
-        },
-        "data_description": {
-          "tracking_codes": "The DAO tracking code(s), as printed on the shipping confirmation or the parcel label. No account is needed to follow them."
-        }
-      },
-      "settings": {
-        "title": "Settings",
-        "data": {
-          "delivered_filter_type": "Delivered parcels: filter by",
-          "delivered_filter_amount": "Delivered parcels: amount",
-          "include_history": "Include status history"
         }
       }
     }
@@ -143,28 +115,6 @@
       "outgoing_delivered_parcels": {
         "name": "Outgoing delivered parcels",
         "unit_of_measurement": "parcels"
-      }
-    }
-  },
-  "services": {
-    "track_parcel": {
-      "name": "Track parcel",
-      "description": "Start tracking a DAO parcel by its tracking code. Needs DAO's tracking-code source, not an account.",
-      "fields": {
-        "tracking_code": {
-          "name": "Tracking code",
-          "description": "The DAO tracking code."
-        }
-      }
-    },
-    "untrack_parcel": {
-      "name": "Untrack parcel",
-      "description": "Stop tracking a DAO parcel by its tracking code.",
-      "fields": {
-        "tracking_code": {
-          "name": "Tracking code",
-          "description": "The DAO tracking code to stop tracking."
-        }
       }
     }
   }

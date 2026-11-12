@@ -30,7 +30,6 @@ from custom_components.dao.parcels import (
     sort_parcels_by_ts,
     to_iso_timestamp,
 )
-import custom_components.dao.status as status_module
 
 from .payloads import (
     delivered_from_pickup_point_sample,
@@ -51,10 +50,11 @@ from .payloads import (
 def _reset_one_shot_warnings():
     """One-shot warning state is module-global — reset it so tests don't
     depend on execution order."""
-    # The flags live in ``dao.status`` now, shared by both sources, so they
-    # are reset through the module that owns them rather than through the
-    # normaliser that re-exports them.
-    status_module.reset_one_shot_warnings()
+    parcels_module._unmapped_statuses_logged.clear()
+    parcels_module._unmapped_status_codes_logged.clear()
+    parcels_module._unmapped_bounds_logged.clear()
+    parcels_module._assumed_ok_split_warned = False
+    parcels_module._unverified_history_warned = False
 
 
 # ---------------------------------------------------------------------------
@@ -274,7 +274,7 @@ def test_build_history_does_not_warn_when_there_is_nothing_to_show():
     build_history(None)
     build_history([])
     build_history([{"status": {"statusType": "STATUS_IN_TRANSIT"}}])  # no timestamp
-    assert status_module._unverified_history_warned is False
+    assert parcels_module._unverified_history_warned is False
 
 
 # ---------------------------------------------------------------------------

@@ -2,13 +2,6 @@
   "title": "DAO",
   "config": {
     "step": {
-      "user": {
-        "title": "Opsæt DAO",
-        "menu_options": {
-          "account": "DAO-konto (pakker vises automatisk)",
-          "tracking": "Pakkenumre (ingen konto nødvendig)"
-        }
-      },
       "dao": {
         "title": "Opsæt DAO",
         "description": "Åbn dette link i en computerbrowser, og log ind hos DAO: {authorize_url}\n\nEn computerbrowser åbner måske ikke den sidste daoapp://-omdirigering. Det er forventet. Kopiér hele URL'en fra adresselinjen, og indsæt den nedenfor. Se den [trinvise vejledning]({docs_url}). Home Assistant modtager aldrig din adgangskode.",
@@ -30,7 +23,7 @@
       "paste_full_url": "DAO kunne ikke finde en kode eller state i teksten — indsæt hele URL'en fra adresselinjen efter login, ikke kun koden."
     },
     "abort": {
-      "already_configured": "DAO's pakkenummer-kilde er allerede opsat. Tilføj numre til den i stedet for at tilføje DAO igen.",
+      "already_configured": "Denne DAO-konto er allerede sat op.",
       "reauth_successful": "DAO blev godkendt igen.",
       "wrong_account": "Disse legitimationsoplysninger hører til en anden DAO-konto. Log ind med den konto, denne integration blev oprettet til."
     }
@@ -60,27 +53,6 @@
               "include_history": "Tilføj en historikattribut pr. pakke, der viser hver statusopdatering (tidsstempel, status, originaltekst). Slået fra som standard."
             }
           }
-        },
-        "menu_options": {
-          "parcels": "Parcels",
-          "settings": "Settings"
-        }
-      },
-      "parcels": {
-        "title": "Administrer pakker",
-        "data": {
-          "tracking_codes": "Pakkenumre"
-        },
-        "data_description": {
-          "tracking_codes": "DAO-pakkenummeret/-numrene, som de står på forsendelsesbekræftelsen eller pakkelabelen. Du behøver ingen konto for at følge dem."
-        }
-      },
-      "settings": {
-        "title": "Indstillinger",
-        "data": {
-          "delivered_filter_type": "Leverede pakker: filtrér efter",
-          "delivered_filter_amount": "Leverede pakker: antal",
-          "include_history": "Medtag statushistorik"
         }
       }
     }
@@ -143,28 +115,6 @@
       "outgoing_delivered_parcels": {
         "name": "Udgående leverede pakker",
         "unit_of_measurement": "pakker"
-      }
-    }
-  },
-  "services": {
-    "track_parcel": {
-      "name": "Følg pakke",
-      "description": "Begynd at følge en DAO-pakke ud fra pakkenummeret. Kræver DAO's pakkenummer-kilde, ikke en konto.",
-      "fields": {
-        "tracking_code": {
-          "name": "Pakkenummer",
-          "description": "DAO-pakkenummeret."
-        }
-      }
-    },
-    "untrack_parcel": {
-      "name": "Stop med at følge pakke",
-      "description": "Stop med at følge en DAO-pakke ud fra pakkenummeret.",
-      "fields": {
-        "tracking_code": {
-          "name": "Pakkenummer",
-          "description": "Det DAO-pakkenummer, der ikke længere skal følges."
-        }
       }
     }
   }

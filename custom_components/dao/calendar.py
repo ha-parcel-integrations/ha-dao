@@ -12,7 +12,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
 from . import DAOConfigEntry
-from .coordinator import DAOAnyCoordinator
+from .coordinator import DAOCoordinator
 from .device import ATTRIBUTION, build_device_info
 from .parcels import parse_iso
 
@@ -30,7 +30,7 @@ async def async_setup_entry(
     async_add_entities([DAODeliveriesCalendar(entry.runtime_data.coordinator, entry)])
 
 
-class DAODeliveriesCalendar(CoordinatorEntity[DAOAnyCoordinator], CalendarEntity):
+class DAODeliveriesCalendar(CoordinatorEntity[DAOCoordinator], CalendarEntity):
     """A read-only calendar of expected DAO deliveries.
 
     Each active tracked parcel with a known delivery moment becomes an event.
@@ -42,7 +42,7 @@ class DAODeliveriesCalendar(CoordinatorEntity[DAOAnyCoordinator], CalendarEntity
     _attr_translation_key = "deliveries"
     _attr_attribution = ATTRIBUTION
 
-    def __init__(self, coordinator: DAOAnyCoordinator, entry: ConfigEntry) -> None:
+    def __init__(self, coordinator: DAOCoordinator, entry: ConfigEntry) -> None:
         """Initialize the calendar."""
         super().__init__(coordinator)
         self._attr_unique_id = f"{entry.entry_id}_deliveries"
