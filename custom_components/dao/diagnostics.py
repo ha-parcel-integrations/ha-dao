@@ -8,6 +8,7 @@ from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.core import HomeAssistant
 
 from . import DAOConfigEntry
+from .const import entry_source
 
 # Diagnostics are pasted into public issues, so redact anything that
 # identifies a person, an address or a specific parcel. Over-redacting is
@@ -33,6 +34,29 @@ TO_REDACT = {
     "coordinates",
     "latitude",
     "longitude",
+    # public tracking-route payload fields. `raw` carries the whole record
+    # (the suite's rule — privacy is diagnostics' job, not the normaliser's),
+    # and that record names the recipient and their address, so the whole
+    # recipient block and every address-shaped key under `pickup` goes. The
+    # masked sender goes too: asterisks are not a privacy boundary.
+    "recipient",
+    "sender_masked",
+    # The canonical pickup-point name, and the "name" it is read from inside
+    # the raw payload. The canonical ``pickup`` flag deliberately stays
+    # readable: it is a boolean, and blanking it would cost the one field
+    # that explains why a parcel is at a shop at all — the name is what
+    # narrows a diagnostics paste to a neighbourhood, not the flag. "name"
+    # is redacted wholesale (it also covers the sender/receiver objects in
+    # the account payload), over-redacting on purpose.
+    "pickup_point",
+    "name",
+    "address",
+    "postal",
+    "postnr",
+    "shop_id",
+    "dist_barcode",
+    "external_tracking",
+    "opening_hours",
     # tokens and the account identity used for the unique id
     "access_token",
     "refresh_token",
@@ -48,6 +72,7 @@ async def async_get_config_entry_diagnostics(
     coordinator = entry.runtime_data.coordinator
 
     return {
+        "source": entry_source(entry),
         "entry_options": async_redact_data(dict(entry.options), TO_REDACT),
         "counts": {
             "incoming_active": len(coordinator.data or []),

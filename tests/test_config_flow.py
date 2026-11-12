@@ -12,12 +12,17 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.dao.const import (
     CONF_ACCOUNT_SUBJECT,
+    CONF_BARCODE,
     CONF_DELIVERED_FILTER_AMOUNT,
     CONF_DELIVERED_FILTER_TYPE,
     CONF_INCLUDE_HISTORY,
+    CONF_PARCELS,
     CONF_REFRESH_TOKEN,
+    CONF_SOURCE,
     DAO_REDIRECT_URL_DOCS_URL,
     DOMAIN,
+    SOURCE_ACCOUNT,
+    SOURCE_TRACKING,
 )
 
 FIXED_VERIFIER = "verifier-0"
@@ -84,6 +89,21 @@ def _entry(subject: str = "subject-1", refresh_token: str = "rt-0") -> MockConfi
     )
 
 
+async def _start_account_flow(hass):
+    """Open the flow and pick the account source from the first menu.
+
+    Setup now opens on a source menu (account vs. keyless tracking codes),
+    so every account test steps through it to reach the paste step.
+    """
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_USER}
+    )
+    assert result["step_id"] == "user"
+    return await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"next_step_id": SOURCE_ACCOUNT}
+    )
+
+
 # ---------------------------------------------------------------------------
 # user step — shows the authorize URL, then exchanges the pasted redirect
 # ---------------------------------------------------------------------------
@@ -91,9 +111,7 @@ def _entry(subject: str = "subject-1", refresh_token: str = "rt-0") -> MockConfi
 
 async def test_user_flow_shows_authorize_url_and_docs_link(hass):
     with _patch_pkce():
-        result = await hass.config_entries.flow.async_init(
-            DOMAIN, context={"source": SOURCE_USER}
-        )
+        result = await _start_account_flow(hass)
 
     assert result["step_id"] == "dao"
     placeholders = result["description_placeholders"]
@@ -103,9 +121,7 @@ async def test_user_flow_shows_authorize_url_and_docs_link(hass):
 
 async def test_user_flow_creates_entry_from_pasted_redirect_url(hass):
     with _patch_pkce():
-        result = await hass.config_entries.flow.async_init(
-            DOMAIN, context={"source": SOURCE_USER}
-        )
+        result = await _start_account_flow(hass)
 
     with patch(SESSION, return_value=_token_session(200, _token_body())):
         result = await hass.config_entries.flow.async_configure(
@@ -121,9 +137,7 @@ async def test_user_flow_accepts_the_full_url_pasted_with_surrounding_text(hass)
     """Browsers sometimes hand back the URL with a trailing fragment or
     whitespace; only the query matters."""
     with _patch_pkce():
-        result = await hass.config_entries.flow.async_init(
-            DOMAIN, context={"source": SOURCE_USER}
-        )
+        result = await _start_account_flow(hass)
 
     with patch(SESSION, return_value=_token_session(200, _token_body())):
         result = await hass.config_entries.flow.async_configure(
@@ -137,9 +151,7 @@ async def test_user_flow_rejects_a_mismatched_state(hass):
     """The user pastes a URL by hand and can paste the wrong one — state is a
     real check, not ceremony."""
     with _patch_pkce():
-        result = await hass.config_entries.flow.async_init(
-            DOMAIN, context={"source": SOURCE_USER}
-        )
+        result = await _start_account_flow(hass)
 
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], {"redirect_url": _redirect_url(state="wrong-state")}
@@ -154,9 +166,7 @@ async def test_user_flow_rejects_a_bare_code(hass):
     reopen the login-CSRF hole `state` exists to close, so it is rejected up
     front with a clear message rather than silently skipping the check."""
     with _patch_pkce():
-        result = await hass.config_entries.flow.async_init(
-            DOMAIN, context={"source": SOURCE_USER}
-        )
+        result = await _start_account_flow(hass)
 
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], {"redirect_url": "auth-code-1"}
@@ -168,9 +178,7 @@ async def test_user_flow_rejects_a_bare_code(hass):
 
 async def test_user_flow_rejects_a_url_without_a_code(hass):
     with _patch_pkce():
-        result = await hass.config_entries.flow.async_init(
-            DOMAIN, context={"source": SOURCE_USER}
-        )
+        result = await _start_account_flow(hass)
 
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
@@ -191,9 +199,7 @@ async def test_user_flow_surfaces_token_endpoint_errors(hass, body, expected):
     """A rejected code and an outage must not look the same to the user."""
     status = 400 if expected == "invalid_auth" else 500
     with _patch_pkce():
-        result = await hass.config_entries.flow.async_init(
-            DOMAIN, context={"source": SOURCE_USER}
-        )
+        result = await _start_account_flow(hass)
 
     with patch(SESSION, return_value=_token_session(status, body)):
         result = await hass.config_entries.flow.async_configure(
@@ -206,9 +212,7 @@ async def test_user_flow_surfaces_token_endpoint_errors(hass, body, expected):
 
 async def test_user_flow_surfaces_a_network_error_as_cannot_connect(hass):
     with _patch_pkce():
-        result = await hass.config_entries.flow.async_init(
-            DOMAIN, context={"source": SOURCE_USER}
-        )
+        result = await _start_account_flow(hass)
 
     session = MagicMock()
     session.post = MagicMock(side_effect=aiohttp.ClientError("boom"))
@@ -224,9 +228,7 @@ async def test_user_flow_aborts_on_duplicate_account(hass):
     _entry(subject="subject-1").add_to_hass(hass)
 
     with _patch_pkce():
-        result = await hass.config_entries.flow.async_init(
-            DOMAIN, context={"source": SOURCE_USER}
-        )
+        result = await _start_account_flow(hass)
     with patch(SESSION, return_value=_token_session(200, _token_body(sub="subject-1"))):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], {"redirect_url": _redirect_url()}
@@ -247,7 +249,7 @@ async def test_reauth_updates_the_refresh_token(hass):
 
     with _patch_pkce():
         result = await entry.start_reauth_flow(hass)
-        assert result["step_id"] == "dao"
+        assert result["step_id"] == "reauth_confirm"
 
         with patch(
             SESSION,
@@ -327,6 +329,10 @@ async def test_options_flow_saves_and_reloads(hass):
 
     result = await hass.config_entries.options.async_init(entry.entry_id)
     assert result["step_id"] == "init"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "settings"}
+    )
+    assert result["step_id"] == "settings"
 
     seen = []
     with patch.object(
@@ -337,11 +343,9 @@ async def test_options_flow_saves_and_reloads(hass):
         result = await hass.config_entries.options.async_configure(
             result["flow_id"],
             {
-                "delivered": {
-                    CONF_DELIVERED_FILTER_TYPE: "parcels",
-                    CONF_DELIVERED_FILTER_AMOUNT: 5,
-                },
-                "history": {CONF_INCLUDE_HISTORY: True},
+                CONF_DELIVERED_FILTER_TYPE: "parcels",
+                CONF_DELIVERED_FILTER_AMOUNT: 5,
+                CONF_INCLUDE_HISTORY: True,
             },
         )
 
@@ -353,3 +357,152 @@ async def test_options_flow_saves_and_reloads(hass):
     }
     # The reload must see the saved options, not the ones from before the form.
     assert seen == [result["data"]]
+
+
+# ---------------------------------------------------------------------------
+# the keyless tracking source
+# ---------------------------------------------------------------------------
+
+
+async def test_tracking_source_creates_an_entry_without_asking_anything(hass):
+    """No account, no postcode: there is nothing to ask and nothing to call."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"next_step_id": SOURCE_TRACKING}
+    )
+
+    assert result["type"] == "create_entry"
+    assert result["data"] == {CONF_SOURCE: SOURCE_TRACKING}
+    assert result["options"][CONF_PARCELS] == []
+    assert result["result"].unique_id == SOURCE_TRACKING
+
+
+async def test_only_one_tracking_hub_can_exist(hass):
+    MockConfigEntry(
+        domain=DOMAIN,
+        unique_id=SOURCE_TRACKING,
+        data={CONF_SOURCE: SOURCE_TRACKING},
+    ).add_to_hass(hass)
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"next_step_id": SOURCE_TRACKING}
+    )
+    assert result["type"] == "abort"
+    assert result["reason"] == "tracking_already_configured"
+
+
+async def test_an_account_entry_can_be_added_beside_a_tracking_hub(hass):
+    MockConfigEntry(
+        domain=DOMAIN,
+        unique_id=SOURCE_TRACKING,
+        data={CONF_SOURCE: SOURCE_TRACKING},
+    ).add_to_hass(hass)
+
+    with _patch_pkce():
+        result = await _start_account_flow(hass)
+    with patch(SESSION, return_value=_token_session(200, _token_body())):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {"redirect_url": _redirect_url()}
+        )
+    assert result["type"] == "create_entry"
+    assert result["data"][CONF_SOURCE] == SOURCE_ACCOUNT
+
+
+def _tracking_entry(codes: list[str] | None = None) -> MockConfigEntry:
+    return MockConfigEntry(
+        domain=DOMAIN,
+        title="DAO (tracking codes)",
+        unique_id=SOURCE_TRACKING,
+        data={CONF_SOURCE: SOURCE_TRACKING},
+        options={
+            CONF_PARCELS: [{CONF_BARCODE: code} for code in (codes or [])],
+            CONF_DELIVERED_FILTER_TYPE: "days",
+            CONF_DELIVERED_FILTER_AMOUNT: 7,
+            CONF_INCLUDE_HISTORY: False,
+        },
+    )
+
+
+async def test_the_tracking_options_flow_opens_on_the_parcels_menu(hass):
+    entry = _tracking_entry()
+    entry.add_to_hass(hass)
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["step_id"] == "init"
+    assert result["menu_options"] == ["parcels", "settings"]
+
+
+async def test_the_account_options_flow_has_no_parcels_step(hass):
+    """An account entry has no tracked-code list to manage."""
+    entry = _entry()
+    entry.add_to_hass(hass)
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["step_id"] == "init"
+    assert result["menu_options"] == ["settings"]
+
+
+async def test_tracking_codes_are_saved_de_duplicated_and_trimmed(hass):
+    entry = _tracking_entry(["OLD"])
+    entry.add_to_hass(hass)
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "parcels"}
+    )
+    assert result["step_id"] == "parcels"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {"tracking_codes": [" ABC ", "ABC", "", "DEF"]},
+    )
+    assert result["type"] == "create_entry"
+    assert result["data"][CONF_PARCELS] == [
+        {CONF_BARCODE: "ABC"},
+        {CONF_BARCODE: "DEF"},
+    ]
+
+
+async def test_clearing_the_list_removes_every_code(hass):
+    entry = _tracking_entry(["ABC"])
+    entry.add_to_hass(hass)
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "parcels"}
+    )
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {})
+    assert result["data"][CONF_PARCELS] == []
+
+
+async def test_the_tracking_settings_step_saves_without_touching_the_codes(hass):
+    entry = _tracking_entry(["ABC"])
+    entry.add_to_hass(hass)
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "settings"}
+    )
+    assert result["step_id"] == "settings"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {
+            CONF_DELIVERED_FILTER_TYPE: "parcels",
+            CONF_DELIVERED_FILTER_AMOUNT: 3,
+            CONF_INCLUDE_HISTORY: True,
+        },
+    )
+    assert result["data"][CONF_PARCELS] == [{CONF_BARCODE: "ABC"}]
+    assert result["data"][CONF_DELIVERED_FILTER_AMOUNT] == 3
+    assert result["data"][CONF_INCLUDE_HISTORY] is True
+
+
+async def test_reauth_shows_the_expired_session_step_not_the_setup_one(hass):
+    """No source menu, and not "Set up DAO" either: the session ran out."""
+    entry = _entry()
+    entry.add_to_hass(hass)
+    with _patch_pkce():
+        result = await entry.start_reauth_flow(hass)
+    assert result["step_id"] == "reauth_confirm"
+    # It still hands out a fresh login URL to paste back.
+    assert FIXED_STATE in result["description_placeholders"]["authorize_url"]

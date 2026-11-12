@@ -30,6 +30,7 @@ from custom_components.dao.parcels import (
     sort_parcels_by_ts,
     to_iso_timestamp,
 )
+import custom_components.dao.status as status_module
 
 from .payloads import (
     delivered_from_pickup_point_sample,
@@ -50,11 +51,10 @@ from .payloads import (
 def _reset_one_shot_warnings():
     """One-shot warning state is module-global — reset it so tests don't
     depend on execution order."""
-    parcels_module._unmapped_statuses_logged.clear()
-    parcels_module._unmapped_status_codes_logged.clear()
-    parcels_module._unmapped_bounds_logged.clear()
-    parcels_module._assumed_ok_split_warned = False
-    parcels_module._unverified_history_warned = False
+    # The flags live in ``dao.status`` now, shared by both sources, so they
+    # are reset through the module that owns them rather than through the
+    # normaliser that re-exports them.
+    status_module.reset_one_shot_warnings()
 
 
 # ---------------------------------------------------------------------------
@@ -120,13 +120,30 @@ def test_map_parcel_status_code_25_dropped_off_at_shop_is_in_transit(caplog):
     assert "no known mapping" not in caplog.text
 
 
-def test_map_parcel_status_terminal_codes_are_in_transit():
-    """11 and 26 are assumed in transit on their text, whatever statusType."""
-    for code in (11, 23, 26):
+def test_map_parcel_status_moving_codes_are_in_transit():
+    """23/25/26 are still on the move, whatever statusType carries them.
+
+    Confirmed by real parcels (2026-11-11): "På vej til daoSHOP",
+    "Indleveret i daoSHOP" and "På vej til terminal".
+    """
+    for code in (23, 25, 26):
         assert (
             map_parcel_status("STATUS_PROCESSING", status_code=code)
             == ParcelStatus.IN_TRANSIT
         )
+
+
+def test_map_parcel_status_code_11_follows_the_status_type():
+    """DAO reuses 11, so on this route its statusType decides, not the code.
+
+    An override would beat the statusType beside it, which would report a
+    home delivery ("Pakke leveret", code 11) as still in transit.
+    """
+    assert map_parcel_status("STATUS_OK", status_code=11) == ParcelStatus.DELIVERED
+    assert (
+        map_parcel_status("STATUS_IN_TRANSIT", status_code=11)
+        == ParcelStatus.IN_TRANSIT
+    )
 
 
 def test_map_parcel_status_ok_code_32_is_at_pickup_point_without_warning(caplog):
@@ -274,7 +291,7 @@ def test_build_history_does_not_warn_when_there_is_nothing_to_show():
     build_history(None)
     build_history([])
     build_history([{"status": {"statusType": "STATUS_IN_TRANSIT"}}])  # no timestamp
-    assert parcels_module._unverified_history_warned is False
+    assert status_module._unverified_history_warned is False
 
 
 # ---------------------------------------------------------------------------
