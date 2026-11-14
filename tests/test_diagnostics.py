@@ -32,8 +32,21 @@ async def test_diagnostics_redacts_and_counts(hass):
                 "houseNumber": "1",
                 "zipCode": "1000",
                 "city": "Copenhagen",
+                # The real resolved shape, verbatim from issue #17 — every
+                # key DAO actually sends, so a camelCase one can never be
+                # missed again (the earlier fixture carried `coordinates`
+                # alone and passed while `streetAddress` leaked).
                 "pickupPoint": {
+                    "id": "54278",
+                    "type": "Priority",
+                    "name": "Example daoSHOP",
+                    "streetAddress": "Testvej 1",
+                    "zipCode": "1000",
+                    "city": "Copenhagen",
                     "coordinates": {"latitude": 55.67, "longitude": 12.56},
+                    "distance": 1.2,
+                    "distanceMinutes": 5.0,
+                    "openingHours": {"monday": "07:30 - 19:00"},
                 },
             },
         }
@@ -70,7 +83,21 @@ async def test_diagnostics_redacts_and_counts(hass):
     assert result["incoming"][0]["raw"]["houseNumber"] == "**REDACTED**"
     assert result["incoming"][0]["raw"]["zipCode"] == "**REDACTED**"
     assert result["incoming"][0]["raw"]["city"] == "**REDACTED**"
-    assert result["incoming"][0]["raw"]["pickupPoint"]["coordinates"] == "**REDACTED**"
+    pickup_point = result["incoming"][0]["raw"]["pickupPoint"]
+    for key in (
+        "id",
+        "name",
+        "streetAddress",
+        "zipCode",
+        "city",
+        "coordinates",
+        "distance",
+        "distanceMinutes",
+        "openingHours",
+    ):
+        assert pickup_point[key] == "**REDACTED**", key
+    # the shop's service type says nothing about where it is
+    assert pickup_point["type"] == "Priority"
     # non-identifying fields survive, or the diagnostics would be useless
     assert result["incoming"][0]["status"] == "out_for_delivery"
     assert result["outgoing"] == []

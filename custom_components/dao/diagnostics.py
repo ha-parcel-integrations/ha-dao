@@ -51,6 +51,19 @@ TO_REDACT = {
     "pickup_point",
     "name",
     "address",
+    # The resolved pickup-point object (account route) is camelCase, and
+    # `async_redact_data` matches keys **exactly** — a snake_case entry below
+    # does not cover its camelCase twin. Reported on issue #17, where a user
+    # had to strike `pickupPoint.streetAddress` out by hand before attaching
+    # their diagnostics. `id` is the shop's own id: it pinpoints the shop as
+    # precisely as `pickupPointId`, which is already redacted, and `distance`
+    # /`distanceMinutes` are measured from the user's own address. None of the
+    # five is read by this integration, so redacting them costs nothing.
+    "streetAddress",
+    "id",
+    "openingHours",
+    "distance",
+    "distanceMinutes",
     "postal",
     "postnr",
     "shop_id",

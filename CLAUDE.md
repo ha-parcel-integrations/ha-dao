@@ -447,6 +447,17 @@ loop (one bad parcel doesn't fail the poll) but **not** around the whole update
 anything with a parcel list or `raw`. Over-redact diagnostics — they get pasted
 into public issues.
 
+**`TO_REDACT` must carry both spellings of every key.** `async_redact_data`
+matches key names **exactly**, and DAO's two routes disagree on case: the
+account route's resolved pickup point is camelCase (`streetAddress`,
+`openingHours`), the keyless route's is snake_case (`opening_hours`,
+`shop_id`). Issue #17 shipped with `streetAddress` and the shop's own `id`
+uncovered — a user had to strike their shop's address out by hand before
+attaching diagnostics, and `tests/test_diagnostics.py` passed because its
+fixture carried a made-up two-key `pickupPoint`. That fixture is now the real
+shape from that report; when a payload shape grows a key, add it there, not
+just to the set.
+
 ## Running tests
 
 ```
