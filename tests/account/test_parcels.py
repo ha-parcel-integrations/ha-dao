@@ -35,6 +35,7 @@ import custom_components.dao.status as status_module
 from .payloads import (
     delivered_from_pickup_point_sample,
     delivered_sample,
+    en_route_to_pickup_point_sample,
     in_transit_sample,
     info_sample,
     outgoing_sample,
@@ -405,6 +406,16 @@ def test_normalize_history_is_opt_in():
 def test_normalize_pickup_parcel():
     parcel = normalize_parcel(pickup_sample())
     assert parcel["status"] == ParcelStatus.AT_PICKUP_POINT
+    assert parcel["pickup"] is True
+    assert parcel["pickup_point"] == "Example Point Central Station"
+
+
+def test_normalize_en_route_to_pickup_point_sets_pickup_before_arrival():
+    """Confirmed by issue #17: `delivery.pickupPointId` is filled while the
+    parcel is still in transit (statusCode 23, "On the way to daoSHOP"), so
+    `pickup` is "bound for a pickup point", not "waiting at one"."""
+    parcel = normalize_parcel(en_route_to_pickup_point_sample())
+    assert parcel["status"] == ParcelStatus.IN_TRANSIT
     assert parcel["pickup"] is True
     assert parcel["pickup_point"] == "Example Point Central Station"
 

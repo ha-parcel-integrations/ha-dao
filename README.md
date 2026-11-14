@@ -171,6 +171,7 @@ Standard HA removal applies: **Settings → Devices & Services → DAO → ⋮ �
 | `sensor.dao_incoming_parcels` | Number of active tracked parcels, full list under the `parcels` attribute |
 | `sensor.dao_parcel_<code>` | One per tracked parcel; state is the canonical status, attributes carry the full normalised parcel |
 | `sensor.dao_next_delivery` | Earliest expected delivery moment across all active parcels — **unavailable until DAO exposes a delivery window** |
+| `sensor.dao_en_route_to_pickup_point` | Parcels headed for a daoSHOP but not collectable yet |
 | `sensor.dao_awaiting_pickup` | Parcels currently waiting for collection at a pickup point |
 | `sensor.dao_delivered_parcels` | Recently delivered parcels (see the retention option) |
 | `sensor.dao_outgoing_parcels` | Number of active parcels you sent (account source only) |

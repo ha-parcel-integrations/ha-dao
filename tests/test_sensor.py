@@ -7,6 +7,7 @@ from custom_components.dao.const import ParcelStatus
 from custom_components.dao.sensor import (
     DAOAwaitingPickupSensor,
     DAODeliveredParcelsSensor,
+    DAOEnRouteToPickupPointSensor,
     DAOIncomingParcelsSensor,
     DAOLastUpdateSensor,
     DAONextDeliverySensor,
@@ -112,6 +113,19 @@ def test_awaiting_pickup_counts_only_at_pickup_point():
         ]
     )
     sensor = DAOAwaitingPickupSensor(coordinator, _entry())
+    assert sensor.native_value == 1
+    assert sensor.extra_state_attributes["parcels"][0]["barcode"] == "A"
+
+
+def test_en_route_counts_pickup_bound_parcels_not_yet_there():
+    coordinator = _coordinator(
+        [
+            _parcel("A", status=ParcelStatus.IN_TRANSIT, pickup=True),
+            _parcel("B", status=ParcelStatus.AT_PICKUP_POINT, pickup=True),
+            _parcel("C", status=ParcelStatus.IN_TRANSIT),
+        ]
+    )
+    sensor = DAOEnRouteToPickupPointSensor(coordinator, _entry())
     assert sensor.native_value == 1
     assert sensor.extra_state_attributes["parcels"][0]["barcode"] == "A"
 

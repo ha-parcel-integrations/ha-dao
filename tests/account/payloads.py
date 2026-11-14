@@ -181,6 +181,23 @@ def pickup_sample(tracking_id: str = TRACKING_ID) -> dict:
     )
 
 
+def en_route_to_pickup_point_sample(tracking_id: str = TRACKING_ID) -> dict:
+    """STATUS_IN_TRANSIT, statusCode 23, ``pickupPointId`` already set.
+
+    The real shape from issue #17: DAO names the daoSHOP while the parcel is
+    still moving ("On the way to daoSHOP"), so ``pickup`` must be true before
+    the status ever reaches ``AT_PICKUP_POINT``.
+    """
+    return parcel(
+        "STATUS_IN_TRANSIT",
+        tracking_id=tracking_id,
+        status_code=23,
+        status_text="On the way to daoSHOP",
+        pickup_point_id=PICKUP_POINT_ID,
+        pickup_point=pickup_point_response(),
+    )
+
+
 def delivered_from_pickup_point_sample(tracking_id: str = TRACKING_ID) -> dict:
     """STATUS_OK, statusCode 51, ``pickupPointId`` set — CONFIRMED "delivered"
     (issue #7: "Pakken er udleveret" for a parcel collected from a pickup

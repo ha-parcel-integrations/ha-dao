@@ -57,6 +57,7 @@ async def async_setup_entry(
     non_parcel_unique_ids = {
         f"{entry_id}_incoming_parcels",
         f"{entry_id}_next_delivery",
+        f"{entry_id}_en_route_to_pickup_point",
         f"{entry_id}_awaiting_pickup",
         f"{entry_id}_delivered_parcels",
         f"{entry_id}_last_update",
@@ -83,6 +84,7 @@ async def async_setup_entry(
         for parcel in coordinator.data or []
     )
     entities.append(DAONextDeliverySensor(coordinator, entry))
+    entities.append(DAOEnRouteToPickupPointSensor(coordinator, entry))
     entities.append(DAOAwaitingPickupSensor(coordinator, entry))
     entities.append(DAODeliveredParcelsSensor(coordinator, entry))
     entities.append(DAOLastUpdateSensor(coordinator, entry))
@@ -241,6 +243,48 @@ class DAONextDeliverySensor(CoordinatorEntity[DAOAnyCoordinator], SensorEntity):
             "sender": earliest.get("sender"),
             "receiver": earliest.get("receiver"),
         }
+
+
+class DAOEnRouteToPickupPointSensor(CoordinatorEntity[DAOAnyCoordinator], SensorEntity):
+    """Sensor reporting parcels on their way to a daoSHOP but not yet collectable.
+
+    Both sources name the shop before the parcel gets there — the keyless
+    route through its own ``pickup`` block, the account route through
+    ``delivery.pickupPointId`` (confirmed on a real in-transit parcel, issue
+    #17) — so this sensor can never be permanently zero here. Membership is
+    the suite's shared rule: ``pickup`` is true and the status is not yet
+    ``AT_PICKUP_POINT``, so it never overlaps ``awaiting_pickup``.
+    """
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "en_route_to_pickup_point"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_attribution = ATTRIBUTION
+    _unrecorded_attributes = frozenset({"parcels"})
+
+    def __init__(self, coordinator: DAOAnyCoordinator, entry: ConfigEntry) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_en_route_to_pickup_point"
+        self._attr_device_info = build_device_info(entry)
+
+    def _get_en_route_parcels(self) -> list[dict]:
+        """Return active parcels headed for a pickup point but not yet there."""
+        return [
+            p
+            for p in (self.coordinator.data or [])
+            if p.get("pickup") and p.get("status") != ParcelStatus.AT_PICKUP_POINT
+        ]
+
+    @property
+    def native_value(self) -> int:
+        """Return the number of parcels en route to a pickup point."""
+        return len(self._get_en_route_parcels())
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return details of each parcel en route to a pickup point."""
+        return {"parcels": self._get_en_route_parcels()}
 
 
 class DAOAwaitingPickupSensor(CoordinatorEntity[DAOAnyCoordinator], SensorEntity):

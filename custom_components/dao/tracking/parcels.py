@@ -274,10 +274,10 @@ def normalize_tracking_parcel(
         else None,
         "planned_from": None,
         "planned_to": None,
-        # Unlike the account source, which can only infer this from the
-        # status, the public route names the daoSHOP as soon as the parcel is
-        # routed to one — which is what the contract's "bound for a pickup
-        # point" actually means.
+        # The public route names the daoSHOP as soon as the parcel is routed
+        # to one — which is what the contract's "bound for a pickup point"
+        # actually means. The account source reads its own
+        # `delivery.pickupPointId` for the same phase.
         "pickup": bool(pickup_point) or status is ParcelStatus.AT_PICKUP_POINT,
         "pickup_point": pickup_point.get("name") or None,
         "url": tracking_url(parcel.get("barcode") or code),

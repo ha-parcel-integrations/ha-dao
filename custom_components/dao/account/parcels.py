@@ -157,6 +157,10 @@ def normalize_parcel(raw: dict, *, include_history: bool = False) -> dict:
     suite returns exactly these, in this order, and the aggregator and
     cross-carrier dashboards depend on it.
 
+    ``pickup`` is true as soon as DAO names a pickup point for the parcel —
+    confirmed on a real parcel still in transit (issue #17) — and not only
+    once it has arrived; a delivered parcel is excluded, because the id it
+    was collected from stays on the payload.
     ``pickup_point`` reads the resolved pickup-point object under
     ``raw["pickupPoint"]`` (fetched separately, per
     ``delivery.pickupPointId``, and merged in before this function ever sees
@@ -182,7 +186,14 @@ def normalize_parcel(raw: dict, *, include_history: bool = False) -> dict:
 
     status = map_parcel_status(status_type, status_code, pickup_point_id)
     delivered = status is ParcelStatus.DELIVERED
-    is_pickup = status is ParcelStatus.AT_PICKUP_POINT
+    # "Bound for a pickup point", not "waiting at one": DAO fills
+    # `delivery.pickupPointId` while the parcel is still moving, so the
+    # status alone would under-report it until arrival (issue #17). A
+    # delivered parcel keeps the id it was collected from, which is neither
+    # phase, so it is excluded.
+    is_pickup = status is ParcelStatus.AT_PICKUP_POINT or (
+        pickup_point_id is not None and not delivered
+    )
 
     if status_code is not None:
         _warn_unmapped_status_code(status_code)

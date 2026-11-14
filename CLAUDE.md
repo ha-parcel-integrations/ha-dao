@@ -41,7 +41,9 @@ you act in one of these areas:
   shop"/"locker", for the generic concept. `ha-dhl-nl`, `ha-dpd`, `ha-gls`,
   `ha-inpost` are reference implementations; both DAO sources reach it (codes 32 and the
   account route's `STATUS_OK` split), and the `awaiting_pickup` sensor is
-  shared.
+  shared — as is the optional `en_route_to_pickup_point` one, which both
+  sources can fill because each names the daoSHOP before the parcel gets
+  there.
 
 ## Carrier-specific notes
 
@@ -150,11 +152,8 @@ Integration-level decisions:
 - **`pickup` reads the `pickup` object, not just the status** — the public
   route names the daoSHOP as soon as a parcel is routed to one (seen at code
   23, "på vej til daoSHOP"), which is what the contract's "bound for a
-  pickup point" means. The account source still derives it from the status
-  alone. Whether DAO names the shop before arrival at all — and therefore
-  whether the suite's optional `en_route_to_pickup_point` sensor is
-  reachable here — is open as issue #17 (help wanted); do not widen the
-  account side on a guess.
+  pickup point" means. The account source reads its own
+  `delivery.pickupPointId` for the same phase — see the account section.
 - **`raw` is the whole payload**, per the suite's rule — including
   `sender_masked` and `recipient`. Privacy is diagnostics' job, and
   `TO_REDACT` covers them; asterisk-masking is not treated as a boundary.
@@ -307,10 +306,35 @@ maps to `in_transit` via `_CONFIRMED_CODE_OVERRIDES`, which beats the type map;
 are confirmed by real parcels. See the code-11 note above for why 11 is not
 in that dict.
 
-**`awaiting_pickup` sensor** exists (`sensor.DAOAwaitingPickupSensor`) since
-the mapping above can reach `ParcelStatus.AT_PICKUP_POINT`; its unique id is
-in `sensor.py`'s stale-entity sweep exclusion set, same as the other summary
-sensors.
+**`pickup` is "bound for a pickup point", not "waiting at one" — confirmed,
+not assumed (issue #17, 2026-11-14).** A real in-transit parcel reported
+`statusCode 23` / `STATUS_IN_TRANSIT` ("On the way to daoSHOP") with
+`delivery.pickupPointId` already set and the shop fully resolved, so the
+account route names the daoSHOP *before* arrival exactly as the keyless route
+does. `account/parcels.py` therefore derives `pickup` from `pickupPointId`
+rather than from `status is AT_PICKUP_POINT` alone. **A delivered parcel is
+excluded**, because it keeps the id it was collected from (issue #7's code
+51) and is in neither phase — without that guard a collected parcel would
+read as still bound for the shop forever.
+
+The same capture also showed `statusText` arrives **localised** ("On the way
+to daoSHOP", "Parcel has arrived at terminal" in an English-locale account).
+Never key account-side logic on that text: `_TRACKING_CODE_BY_TEXT`'s exact
+Danish keys belong to the keyless route, whose own wording is not
+locale-switched. It also confirms code 11 mid-flight arrives as
+`STATUS_PROCESSING`, so an account parcel sitting at a terminal publishes
+`registered`, not `in_transit` — accepted, since the alternative is
+text-matching a localised string.
+
+**`en_route_to_pickup_point` and `awaiting_pickup` sensors** both exist
+(`sensor.DAOEnRouteToPickupPointSensor` /
+`sensor.DAOAwaitingPickupSensor`) and split on
+`ParcelStatus.AT_PICKUP_POINT`, so they never overlap: en route is
+`pickup and status != AT_PICKUP_POINT`. The optional en-route one earns its
+place on both sources because each names the shop ahead of arrival (above);
+it is **not** derivable for a carrier that only learns it on arrival. Both
+unique ids are in `sensor.py`'s stale-entity sweep exclusion set, same as the
+other summary sensors.
 
 **Incoming and outgoing come from the same inbox call.** `api.py`'s
 `async_get_parcels()` already fetches and combines both `bound: "IN"` and
