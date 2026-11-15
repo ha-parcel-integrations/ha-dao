@@ -11,9 +11,22 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .account.client import DAOApiClient, DAOApiError, DAOAuthError, resolve_lang
+from .account.client import (
+    DAOApiClient,
+    DAOApiError,
+    DAOAuthError,
+    async_revoke,
+    resolve_lang,
+)
 from .account.coordinator import DAOCoordinator
-from .const import CONF_REFRESH_TOKEN, DOMAIN, PLATFORMS, SOURCE_TRACKING, entry_source
+from .const import (
+    CONF_REFRESH_TOKEN,
+    DOMAIN,
+    PLATFORMS,
+    SOURCE_ACCOUNT,
+    SOURCE_TRACKING,
+    entry_source,
+)
 from .services import async_setup_services, async_unload_services
 from .tracking.api import DAOTrackingApiClient
 from .tracking.coordinator import DAOTrackingCoordinator
@@ -152,3 +165,16 @@ async def async_unload_entry(hass: HomeAssistant, entry: DAOConfigEntry) -> bool
         # unloads beside it.
         async_unload_services(hass)
     return True
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: DAOConfigEntry) -> None:
+    """End an account entry's login, so its refresh token in a backup is useless."""
+    if entry_source(entry) != SOURCE_ACCOUNT:
+        return
+    refresh_token = entry.data.get(CONF_REFRESH_TOKEN)
+    if not refresh_token:
+        return
+    try:
+        await async_revoke(async_get_clientsession(hass), refresh_token)
+    except DAOApiError:
+        _LOGGER.warning("Could not end the DAO login of entry %s", entry.entry_id)

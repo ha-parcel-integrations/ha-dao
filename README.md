@@ -162,7 +162,7 @@ what your tracked parcels are actually doing:
 
 ## Removal
 
-Standard HA removal applies: **Settings → Devices & Services → DAO → ⋮ → Delete**. Nothing is stored on DAO's side.
+Standard HA removal applies: **Settings → Devices & Services → DAO → ⋮ → Delete**. Deleting an account entry also signs Home Assistant's login out at DAO; if that fails, a warning names the entry.
 
 ## Sensors
 

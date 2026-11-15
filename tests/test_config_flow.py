@@ -20,6 +20,7 @@ from custom_components.dao.const import (
     CONF_REFRESH_TOKEN,
     CONF_SOURCE,
     DAO_REDIRECT_URL_DOCS_URL,
+    DAO_REVOKE_URL,
     DOMAIN,
     SOURCE_ACCOUNT,
     SOURCE_TRACKING,
@@ -64,6 +65,14 @@ def _token_session(status: int, body: object) -> MagicMock:
     session = MagicMock()
     session.post = MagicMock(return_value=ctx)
     return session
+
+
+def _revoked(session: MagicMock) -> list[str]:
+    return [
+        call.kwargs["data"]["token"]
+        for call in session.post.call_args_list
+        if call.args and call.args[0] == DAO_REVOKE_URL
+    ]
 
 
 def _token_body(sub: str = "subject-1", refresh_token: str = "rt-1") -> dict:  # noqa: S107 - test fixture value
@@ -229,13 +238,15 @@ async def test_user_flow_aborts_on_duplicate_account(hass):
 
     with _patch_pkce():
         result = await _start_account_flow(hass)
-    with patch(SESSION, return_value=_token_session(200, _token_body(sub="subject-1"))):
+    session = _token_session(200, _token_body(sub="subject-1"))
+    with patch(SESSION, return_value=session):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], {"redirect_url": _redirect_url()}
         )
 
     assert result["type"] == "abort"
     assert result["reason"] == "already_configured"
+    assert _revoked(session) == ["rt-1"]
 
 
 # ---------------------------------------------------------------------------
@@ -251,12 +262,10 @@ async def test_reauth_updates_the_refresh_token(hass):
         result = await entry.start_reauth_flow(hass)
         assert result["step_id"] == "reauth_confirm"
 
-        with patch(
-            SESSION,
-            return_value=_token_session(
-                200, _token_body(sub="subject-1", refresh_token="rt-new")
-            ),
-        ):
+        session = _token_session(
+            200, _token_body(sub="subject-1", refresh_token="rt-new")
+        )
+        with patch(SESSION, return_value=session):
             result = await hass.config_entries.flow.async_configure(
                 result["flow_id"], {"redirect_url": _redirect_url()}
             )
@@ -265,6 +274,33 @@ async def test_reauth_updates_the_refresh_token(hass):
     assert result["type"] == "abort"
     assert result["reason"] == "reauth_successful"
     assert entry.data[CONF_REFRESH_TOKEN] == "rt-new"
+    assert _revoked(session) == ["rt-0"]
+
+
+async def test_reauth_keeps_the_new_login_when_the_old_cannot_be_ended(hass, caplog):
+    entry = _entry(subject="subject-1", refresh_token="rt-0")
+    entry.add_to_hass(hass)
+    session = _token_session(200, _token_body(sub="subject-1", refresh_token="rt-new"))
+    revoke_ctx = MagicMock()
+    revoke_ctx.__aenter__ = AsyncMock(side_effect=aiohttp.ClientError())
+    revoke_ctx.__aexit__ = AsyncMock(return_value=False)
+    token_ctx = session.post.return_value
+    session.post = MagicMock(
+        side_effect=lambda url, **_: revoke_ctx if url == DAO_REVOKE_URL else token_ctx
+    )
+
+    with _patch_pkce():
+        result = await entry.start_reauth_flow(hass)
+        with patch(SESSION, return_value=session):
+            result = await hass.config_entries.flow.async_configure(
+                result["flow_id"], {"redirect_url": _redirect_url()}
+            )
+            await hass.async_block_till_done()
+
+    assert result["reason"] == "reauth_successful"
+    assert entry.data[CONF_REFRESH_TOKEN] == "rt-new"
+    assert "couldn't be ended" in caplog.text
+    assert "rt-0" not in caplog.text
 
 
 async def test_reauth_rejects_a_different_account(hass):
@@ -275,9 +311,8 @@ async def test_reauth_rejects_a_different_account(hass):
 
     with _patch_pkce():
         result = await entry.start_reauth_flow(hass)
-        with patch(
-            SESSION, return_value=_token_session(200, _token_body(sub="someone-else"))
-        ):
+        session = _token_session(200, _token_body(sub="someone-else"))
+        with patch(SESSION, return_value=session):
             result = await hass.config_entries.flow.async_configure(
                 result["flow_id"], {"redirect_url": _redirect_url()}
             )
@@ -285,6 +320,7 @@ async def test_reauth_rejects_a_different_account(hass):
     assert result["type"] == "abort"
     assert result["reason"] == "wrong_account"
     assert entry.data[CONF_REFRESH_TOKEN] == "rt-0"
+    assert _revoked(session) == ["rt-1"]
 
 
 async def test_reauth_surfaces_invalid_credentials(hass):

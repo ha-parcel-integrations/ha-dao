@@ -8,6 +8,7 @@ from homeassistant.helpers import entity_registry as er
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.dao import async_remove_entry
 from custom_components.dao.api import DAOApiError, DAOAuthError
 from custom_components.dao.const import (
     CONF_ACCOUNT_SUBJECT,
@@ -337,3 +338,33 @@ async def test_unloading_one_tracking_entry_keeps_nothing_behind(hass):
 
     assert not hass.services.has_service(DOMAIN, "track_parcel")
     assert account.state is ConfigEntryState.LOADED
+
+
+async def test_removing_an_account_ends_its_login(hass):
+    entry = _entry()
+    entry.add_to_hass(hass)
+    revoke = AsyncMock()
+    with patch("custom_components.dao.async_revoke", revoke):
+        await async_remove_entry(hass, entry)
+    assert revoke.await_args.args[1] == entry.data[CONF_REFRESH_TOKEN]
+
+
+async def test_a_failed_revocation_is_only_logged(hass, caplog):
+    entry = _entry()
+    entry.add_to_hass(hass)
+    with patch(
+        "custom_components.dao.async_revoke",
+        AsyncMock(side_effect=DAOApiError("down")),
+    ):
+        await async_remove_entry(hass, entry)
+    assert entry.entry_id in caplog.text
+    assert entry.data[CONF_REFRESH_TOKEN] not in caplog.text
+
+
+async def test_removing_a_tracking_entry_revokes_nothing(hass):
+    entry = _tracking_entry()
+    entry.add_to_hass(hass)
+    revoke = AsyncMock()
+    with patch("custom_components.dao.async_revoke", revoke):
+        await async_remove_entry(hass, entry)
+    revoke.assert_not_awaited()

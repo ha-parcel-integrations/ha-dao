@@ -142,6 +142,7 @@ DAO_AUTHORIZATION_URL = (
     "https://auth.dao.as/realms/consumers/protocol/openid-connect/auth"
 )
 DAO_TOKEN_URL = "https://auth.dao.as/realms/consumers/protocol/openid-connect/token"
+DAO_REVOKE_URL = "https://auth.dao.as/realms/consumers/protocol/openid-connect/revoke"
 DAO_TRACKING_URL = "https://apiv2.dao.as/consumer/shipment/tracking/v1/tracking"
 DAO_PICKUP_POINT_URL = (
     "https://apiv2.dao.as/consumer/shipment/pickup-point/v1/pickup-points"

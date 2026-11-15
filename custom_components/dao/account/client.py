@@ -18,6 +18,7 @@ from ..const import (
     DAO_CLIENT_ID,
     DAO_PICKUP_POINT_URL,
     DAO_REDIRECT_URI,
+    DAO_REVOKE_URL,
     DAO_TOKEN_URL,
     DAO_TRACKING_URL,
 )
@@ -96,6 +97,27 @@ def build_authorization_url(challenge: str, state: str) -> str:
         "kc_locale": "da",
     }
     return f"{DAO_AUTHORIZATION_URL}?{urlencode(params)}"
+
+
+async def async_revoke(session: aiohttp.ClientSession, refresh_token: str) -> None:
+    """End a login at DAO, so its refresh token can't renew access any more."""
+    try:
+        async with session.post(
+            DAO_REVOKE_URL,
+            data={
+                "token": refresh_token,
+                "token_type_hint": "refresh_token",
+                "client_id": DAO_CLIENT_ID,
+            },
+        ) as response:
+            status = response.status
+    except (aiohttp.ClientError, TimeoutError) as err:
+        raise DAOApiError("DAO revocation endpoint unreachable") from err
+    # Keycloak answers an unknown or already revoked token with 200 as well.
+    if status != 200:
+        raise DAOApiError(
+            f"DAO revocation endpoint returned HTTP {status}", status_code=status
+        )
 
 
 class DAOApiClient:

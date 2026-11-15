@@ -222,6 +222,12 @@ coordinator's own poll cycle — a long dynamic-polling interval could
 theoretically let the session go idle between refreshes. Revisit once session
 lifetime is measured; do not add a keepalive on a guess.
 
+**Logins the integration stops holding are revoked, best effort.** Removing an
+account entry, a successful reauth (the old token), a reauth as another
+account and a duplicate account (the new token) each call `async_revoke`. A
+failed revocation only logs a warning naming the entry id; it never blocks the
+flow or the removal.
+
 **Reauth account-mismatch guard.** Reauth re-runs the same three steps and
 calls `async_set_unique_id` + `_abort_if_unique_id_mismatch` before touching
 the entry, so pasting a different DAO account's login aborts with

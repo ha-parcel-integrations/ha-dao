@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+import logging
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
@@ -15,6 +16,7 @@ from homeassistant.config_entries import (
     OptionsFlowWithReload,
 )
 from homeassistant.core import callback
+from homeassistant.data_entry_flow import AbortFlow
 from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import voluptuous as vol
@@ -23,6 +25,7 @@ from .account.client import (
     DAOApiClient,
     DAOApiError,
     DAOAuthError,
+    async_revoke,
     build_authorization_url,
     new_pkce,
 )
@@ -44,6 +47,8 @@ from .const import (
     SOURCE_TRACKING,
     entry_source,
 )
+
+_LOGGER = logging.getLogger(__name__)
 
 _SCHEMA = vol.Schema({vol.Required("redirect_url"): str})
 
@@ -196,15 +201,28 @@ class DAOConfigFlow(ConfigFlow, domain=DOMAIN):
                     client.account_subject or f"dao:{client.refresh_token[-12:]}"
                 )
                 if self.source == "reauth":
-                    self._abort_if_unique_id_mismatch(reason="wrong_account")
-                    return self.async_update_reload_and_abort(
-                        self._get_reauth_entry(),
+                    entry = self._get_reauth_entry()
+                    try:
+                        self._abort_if_unique_id_mismatch(reason="wrong_account")
+                    except AbortFlow:
+                        await self._async_end_login(client.refresh_token)
+                        raise
+                    old_refresh = entry.data.get(CONF_REFRESH_TOKEN)
+                    result = self.async_update_reload_and_abort(
+                        entry,
                         data_updates={
                             CONF_REFRESH_TOKEN: client.refresh_token,
                             CONF_ACCOUNT_SUBJECT: client.account_subject or "unknown",
                         },
                     )
-                self._abort_if_unique_id_configured()
+                    if old_refresh and old_refresh != client.refresh_token:
+                        await self._async_end_login(old_refresh)
+                    return result
+                try:
+                    self._abort_if_unique_id_configured()
+                except AbortFlow:
+                    await self._async_end_login(client.refresh_token)
+                    raise
                 return self.async_create_entry(
                     title="DAO",
                     data={
@@ -222,6 +240,13 @@ class DAOConfigFlow(ConfigFlow, domain=DOMAIN):
                 "docs_url": DAO_REDIRECT_URL_DOCS_URL,
             },
         )
+
+    async def _async_end_login(self, refresh_token: str) -> None:
+        """End a login the flow doesn't keep, so nobody is left holding it."""
+        try:
+            await async_revoke(async_get_clientsession(self.hass), refresh_token)
+        except DAOApiError:
+            _LOGGER.warning("A DAO login that wasn't kept couldn't be ended")
 
     async def async_step_reauth(
         self, entry_data: Mapping[str, Any]

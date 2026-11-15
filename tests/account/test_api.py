@@ -11,6 +11,7 @@ from urllib.parse import parse_qs, urlparse
 import aiohttp
 import pytest
 
+from custom_components.dao.account.client import async_revoke
 from custom_components.dao.api import (
     DAOApiClient,
     DAOApiError,
@@ -567,3 +568,36 @@ async def test_get_pickup_point_failure_is_not_cached():
     pickup_point = await client.async_get_pickup_point("PP1")
     assert pickup_point == {"id": "PP1"}
     assert session.get.call_count == 2
+
+
+def _revoke_session(status: int = 200, error: Exception | None = None) -> MagicMock:
+    response = MagicMock()
+    response.status = status
+    ctx = MagicMock()
+    ctx.__aenter__ = AsyncMock(return_value=response, side_effect=error)
+    ctx.__aexit__ = AsyncMock(return_value=False)
+    session = MagicMock()
+    session.post = MagicMock(return_value=ctx)
+    return session
+
+
+async def test_revoke_posts_the_refresh_token_for_the_app_client():
+    session = _revoke_session()
+    await async_revoke(session, "rt-1")
+    url = session.post.call_args.args[0]
+    data = session.post.call_args.kwargs["data"]
+    assert url.endswith("/openid-connect/revoke")
+    assert data == {
+        "token": "rt-1",
+        "token_type_hint": "refresh_token",
+        "client_id": DAO_CLIENT_ID,
+    }
+
+
+@pytest.mark.parametrize(
+    "session",
+    [_revoke_session(status=503), _revoke_session(error=aiohttp.ClientError())],
+)
+async def test_a_failed_revoke_is_an_api_error(session):
+    with pytest.raises(DAOApiError):
+        await async_revoke(session, "rt-1")
