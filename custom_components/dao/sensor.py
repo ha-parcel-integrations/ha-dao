@@ -17,6 +17,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.util import dt as dt_util
 
 from . import DAOConfigEntry
 from .const import DOMAIN, SOURCE_TRACKING, ParcelStatus, entry_source
@@ -214,6 +215,7 @@ class DAONextDeliverySensor(CoordinatorEntity[DAOAnyCoordinator], SensorEntity):
 
     def _delivery_moments(self) -> list[tuple[datetime, dict]]:
         result: list[tuple[datetime, dict]] = []
+        now = dt_util.utcnow()
         for parcel in self.coordinator.data or []:
             moment = parse_iso(parcel.get("planned_from"))
             if moment is None:
@@ -221,6 +223,8 @@ class DAONextDeliverySensor(CoordinatorEntity[DAOAnyCoordinator], SensorEntity):
                     _LOGGER.debug(
                         "Could not parse delivery moment: %s", parcel["planned_from"]
                     )
+                continue
+            if (parse_iso(parcel.get("planned_to")) or moment) < now:
                 continue
             result.append((moment, parcel))
         return result
@@ -252,8 +256,9 @@ class DAOEnRouteToPickupPointSensor(CoordinatorEntity[DAOAnyCoordinator], Sensor
     route through its own ``pickup`` block, the account route through
     ``delivery.pickupPointId`` (confirmed on a real in-transit parcel, issue
     #17) — so this sensor can never be permanently zero here. Membership is
-    the suite's shared rule: ``pickup`` is true and the status is not yet
-    ``AT_PICKUP_POINT``, so it never overlaps ``awaiting_pickup``.
+    the suite's shared rule: ``pickup`` is true and the status is neither
+    ``AT_PICKUP_POINT`` nor ``RETURNING``, so it never overlaps
+    ``awaiting_pickup``.
     """
 
     _attr_has_entity_name = True
@@ -273,7 +278,9 @@ class DAOEnRouteToPickupPointSensor(CoordinatorEntity[DAOAnyCoordinator], Sensor
         return [
             p
             for p in (self.coordinator.data or [])
-            if p.get("pickup") and p.get("status") != ParcelStatus.AT_PICKUP_POINT
+            if p.get("pickup")
+            and p.get("status")
+            not in (ParcelStatus.AT_PICKUP_POINT, ParcelStatus.RETURNING)
         ]
 
     @property

@@ -19,6 +19,7 @@ from zoneinfo import ZoneInfo
 # reimplemented — the same arrangement ha-bpost uses for its two sources.
 from ..account.parcels import (  # noqa: F401 - re-exported for the platforms
     apply_delivered_filter,
+    is_pickup,
     parse_iso,
     sort_parcels_by_ts,
     tracking_url,
@@ -257,6 +258,15 @@ def normalize_tracking_parcel(
     delivered = status is ParcelStatus.DELIVERED
 
     pickup_point = parcel.get("pickup") or {}
+    pickup = is_pickup(
+        bool(pickup_point),
+        status,
+        (
+            map_tracking_code(event_code(event), event_description(event))
+            for event in parcel.get("events") or []
+            if isinstance(event, dict) and event_code(event) is not None
+        ),
+    )
     recipient = parcel.get("recipient") or {}
     latest_event = parcel.get("latest_event") or {}
 
@@ -278,8 +288,8 @@ def normalize_tracking_parcel(
         # to one — which is what the contract's "bound for a pickup point"
         # actually means. The account source reads its own
         # `delivery.pickupPointId` for the same phase.
-        "pickup": bool(pickup_point) or status is ParcelStatus.AT_PICKUP_POINT,
-        "pickup_point": pickup_point.get("name") or None,
+        "pickup": pickup,
+        "pickup_point": pickup_point.get("name") or None if pickup else None,
         "url": tracking_url(parcel.get("barcode") or code),
         "weight": None,
         "dimensions": None,

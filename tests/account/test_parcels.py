@@ -427,7 +427,8 @@ def test_normalize_delivered_from_pickup_point_is_delivered_not_at_pickup_point(
     parcel = normalize_parcel(delivered_from_pickup_point_sample())
     assert parcel["status"] == ParcelStatus.DELIVERED
     assert parcel["delivered"] is True
-    assert parcel["pickup"] is False
+    assert parcel["pickup"] is True
+    assert parcel["pickup_point"] == "Example Point Central Station"
 
 
 def test_normalize_outgoing_parcel_is_normalised_like_any_other():
