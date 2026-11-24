@@ -18,6 +18,7 @@ TO_REDACT = {
     "barcode",
     "sender",
     "receiver",
+    "contents",
     "url",
     # DAO payload fields
     "trackingId",

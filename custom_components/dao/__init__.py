@@ -27,6 +27,7 @@ from .const import (
     SOURCE_TRACKING,
     entry_source,
 )
+from .contents import ContentsStore
 from .services import async_setup_services, async_unload_services
 from .tracking.api import DAOTrackingApiClient
 from .tracking.coordinator import DAOTrackingCoordinator
@@ -59,6 +60,7 @@ async def _async_setup_tracking(hass: HomeAssistant, entry: DAOConfigEntry) -> b
     # catch cleanly (it logs a warning and half-sets-up the entry); doing the
     # first refresh here lets a transient failure fail the whole entry so HA
     # retries it with backoff.
+    await coordinator.contents_store.async_load()
     await coordinator.async_config_entry_first_refresh()
 
     entry.runtime_data = DAOData(client=client, coordinator=coordinator, session=None)
@@ -119,6 +121,7 @@ async def _async_setup_account(hass: HomeAssistant, entry: DAOConfigEntry) -> bo
         # catch cleanly (it logs a warning and half-sets-up the entry); doing
         # the first refresh here lets a transient failure fail the whole entry
         # so HA retries it with backoff.
+        await coordinator.contents_store.async_load()
         await coordinator.async_config_entry_first_refresh()
     except Exception:
         # Without this, every setup retry leaks a session.
@@ -137,6 +140,7 @@ async def _async_setup_account(hass: HomeAssistant, entry: DAOConfigEntry) -> bo
 
     # No entry.add_update_listener: the options flow is an
     # OptionsFlowWithReload, which may not be combined with one.
+    async_setup_services(hass, hub=False)
     return True
 
 
@@ -154,21 +158,21 @@ async def async_unload_entry(hass: HomeAssistant, entry: DAOConfigEntry) -> bool
     session = entry.runtime_data.session
     if session is not None:
         await session.close()
-    if entry_source(entry) == SOURCE_TRACKING and not any(
-        other.entry_id != entry.entry_id
-        and other.state is ConfigEntryState.LOADED
-        and entry_source(other) == SOURCE_TRACKING
+    # Drop a service when the last entry that needs it goes, so unloading one
+    # entry never breaks the others.
+    others = [
+        other
         for other in hass.config_entries.async_entries(DOMAIN)
-    ):
-        # The services belong to the tracking source; remove them only once
-        # the last tracking entry is gone, never when an account entry
-        # unloads beside it.
-        async_unload_services(hass)
+        if other.entry_id != entry.entry_id and other.state is ConfigEntryState.LOADED
+    ]
+    hubs_left = any(entry_source(other) == SOURCE_TRACKING for other in others)
+    async_unload_services(hass, hubs_left=hubs_left, entries_left=bool(others))
     return True
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: DAOConfigEntry) -> None:
-    """End an account entry's login, so its refresh token in a backup is useless."""
+    """Delete the entry's contents and end an account's login."""
+    await ContentsStore(hass, entry.entry_id).async_remove()
     if entry_source(entry) != SOURCE_ACCOUNT:
         return
     refresh_token = entry.data.get(CONF_REFRESH_TOKEN)

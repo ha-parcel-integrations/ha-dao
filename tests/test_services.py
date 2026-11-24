@@ -22,6 +22,7 @@ from custom_components.dao.const import (
 from custom_components.dao.services import (
     SERVICE_TRACK_PARCEL,
     SERVICE_UNTRACK_PARCEL,
+    SERVICE_UPDATE_CONTENTS,
     async_setup_services,
     async_unload_services,
 )
@@ -34,7 +35,7 @@ def _services(hass):
     """Register the services directly; entry setup is tested elsewhere."""
     async_setup_services(hass)
     yield
-    async_unload_services(hass)
+    async_unload_services(hass, hubs_left=False, entries_left=False)
 
 
 def _tracking_entry(hass, codes: list[str] | None = None) -> MockConfigEntry:
@@ -143,9 +144,28 @@ async def test_registration_is_idempotent(hass):
     assert hass.services.has_service(DOMAIN, SERVICE_TRACK_PARCEL)
 
 
-async def test_unload_removes_both_services(hass):
-    async_unload_services(hass)
+async def test_unload_removes_every_service_with_the_last_entry(hass):
+    async_unload_services(hass, hubs_left=False, entries_left=False)
     assert not hass.services.has_service(DOMAIN, SERVICE_TRACK_PARCEL)
     assert not hass.services.has_service(DOMAIN, SERVICE_UNTRACK_PARCEL)
+    assert not hass.services.has_service(DOMAIN, SERVICE_UPDATE_CONTENTS)
     # Removing twice is harmless.
-    async_unload_services(hass)
+    async_unload_services(hass, hubs_left=False, entries_left=False)
+
+
+async def test_unload_keeps_what_the_remaining_entries_need(hass):
+    async_unload_services(hass, hubs_left=False, entries_left=True)
+    assert not hass.services.has_service(DOMAIN, SERVICE_TRACK_PARCEL)
+    assert hass.services.has_service(DOMAIN, SERVICE_UPDATE_CONTENTS)
+
+    async_setup_services(hass)
+    async_unload_services(hass, hubs_left=True, entries_left=True)
+    assert hass.services.has_service(DOMAIN, SERVICE_TRACK_PARCEL)
+    assert hass.services.has_service(DOMAIN, SERVICE_UPDATE_CONTENTS)
+
+
+async def test_an_account_registration_leaves_out_the_tracking_services(hass):
+    async_unload_services(hass, hubs_left=False, entries_left=False)
+    async_setup_services(hass, hub=False)
+    assert not hass.services.has_service(DOMAIN, SERVICE_TRACK_PARCEL)
+    assert hass.services.has_service(DOMAIN, SERVICE_UPDATE_CONTENTS)

@@ -34,7 +34,15 @@ PLATFORMS = [Platform.BUTTON, Platform.CALENDAR, Platform.SENSOR]
 # subset of this — it exists so a typo in CAPABILITIES fails a test instead of
 # silently dropping a carrier off a table on the docs site.
 KNOWN_CAPABILITIES = frozenset(
-    {"weight", "dimensions", "delivery_window", "pickup_point", "url", "history"}
+    {
+        "weight",
+        "dimensions",
+        "delivery_window",
+        "pickup_point",
+        "url",
+        "history",
+        "contents",
+    }
 )
 
 # The docs site's carrier comparison table is generated straight from this
@@ -106,6 +114,9 @@ CONF_BARCODE = "barcode"
 # "barcode"; the stored key stays CONF_BARCODE so no entry migration is
 # involved.
 CONF_TRACKING_CODE = "tracking_code"
+# The user-set parcel contents, and the optional entry an update is limited to.
+CONF_CONTENTS = "contents"
+CONF_CONFIG_ENTRY_ID = "config_entry_id"
 
 # The public tracking page, which hands out both the lookup endpoint and the
 # request nonce. Also the user-facing deep link (TRACKING_URL below).

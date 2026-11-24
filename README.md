@@ -52,6 +52,7 @@ needs no sign-in at all — just the number from the shipping confirmation.
 
 - Track parcels **by tracking code without any account**, or sign in and have your DAO account's parcels discovered automatically — or both at once
 - `dao.track_parcel` / `dao.untrack_parcel` actions, so a dashboard button or an automation can start following a parcel
+- A `contents` note per parcel (`dao.update_contents`), shown on the calendar event and the next-delivery sensor
 - Per-parcel sensor with the canonical status (`registered` / `in_transit` / `at_pickup_point` / `delivered` / …), the carrier's own status text and a tracking deep-link
 - Summary sensors: incoming parcels, next delivery, awaiting pickup, recently delivered parcels, plus separate outgoing/outgoing-delivered sensors for parcels you sent (account source only)
 - Read-only **Deliveries** calendar (empty for now: see the note on delivery windows below)
@@ -120,13 +121,18 @@ status-driven schedule with nothing to configure.
 
 ## Actions
 
-Available once the **tracking-code** source is set up (an account-only setup
-registers no actions, because it has no code list to add to):
+`dao.track_parcel` and `dao.untrack_parcel` are available once the
+**tracking-code** source is set up (an account-only setup does not register
+them, because it has no code list to add to). `dao.update_contents` works with
+any set-up entry.
 
-| Action | Field | Description |
+| Action | Fields | Description |
 |---|---|---|
-| `dao.track_parcel` | `tracking_code` | Start following a parcel. Adding a code you already follow does nothing. |
+| `dao.track_parcel` | `tracking_code`, `contents` (optional) | Start following a parcel, optionally noting what is in it. Adding a code you already follow does nothing to the list. |
 | `dao.untrack_parcel` | `tracking_code` | Stop following a parcel and remove its sensor. |
+| `dao.update_contents` | `tracking_code`, `contents`, `config_entry_id` (optional) | Set what is in a parcel, tracked or not; an empty `contents` clears it. It goes to every account or tracking-code entry that lists the code; name one with `config_entry_id` (needed for a code none lists yet). |
+
+The `contents` text you set titles the parcel's calendar event and shows on the next-delivery sensor.
 
 ```yaml
 action: dao.track_parcel

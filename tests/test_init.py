@@ -277,6 +277,7 @@ async def test_an_account_entry_registers_no_services(hass):
         await hass.async_block_till_done()
 
     assert not hass.services.has_service(DOMAIN, "track_parcel")
+    assert hass.services.has_service(DOMAIN, "update_contents")
 
 
 async def test_an_options_change_refreshes_a_tracking_entry(hass):

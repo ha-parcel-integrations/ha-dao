@@ -34,6 +34,7 @@ from ..const import (
     TRACKING_FETCH_GAP_SECONDS,
     ParcelStatus,
 )
+from ..contents import ContentsStore, normalize_code
 from ..events import (
     fire_incoming_change_events,
     snapshot_delivery_times,
@@ -81,6 +82,10 @@ class DAOTrackingCoordinator(DataUpdateCoordinator[list[dict]]):
             update_interval=timedelta(minutes=MID_INTERVAL_MINUTES),
         )
         self._client = client
+        self.contents_store = ContentsStore(hass, entry.entry_id)
+        # Every tracked code, delivered ones past the retention filter
+        # included: update_contents asks which entry a code belongs to.
+        self.known_codes: frozenset[str] = frozenset()
         self.delivered: list[dict] = []
         # Always empty: the public route is recipient-side only. Kept so the
         # shared platforms need no source check.
@@ -132,6 +137,13 @@ class DAOTrackingCoordinator(DataUpdateCoordinator[list[dict]]):
         return bool(
             self.config_entry.options.get(CONF_INCLUDE_HISTORY, DEFAULT_INCLUDE_HISTORY)
         )
+
+    def _apply_contents(self, parcel: dict, code: object) -> dict:
+        """Put the user's own contents text over the carrier's, when there is one."""
+        user_value = self.contents_store.get(code)
+        if user_value is not None:
+            parcel["contents"] = user_value
+        return parcel
 
     def _tracked(self) -> list[str]:
         """Return the tracked codes from the entry's options."""
@@ -246,13 +258,22 @@ class DAOTrackingCoordinator(DataUpdateCoordinator[list[dict]]):
 
         include_history = self._include_history
         normalized = [
-            normalize_tracking_parcel(
+            self._apply_contents(
+                normalize_tracking_parcel(
+                    code,
+                    self._raw_cache.get(parcel_key(code)),
+                    include_history=include_history,
+                ),
                 code,
-                self._raw_cache.get(parcel_key(code)),
-                include_history=include_history,
             )
             for code in tracked
         ]
+        self.known_codes = frozenset(
+            normalize_code(value)
+            for code, parcel in zip(tracked, normalized, strict=True)
+            for value in (code, parcel.get("barcode"))
+            if value
+        )
 
         self._delivered_codes = {
             parcel_key(parcel["barcode"])

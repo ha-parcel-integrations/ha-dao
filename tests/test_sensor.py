@@ -51,6 +51,7 @@ def _parcel(
         "barcode": barcode,
         "sender": "Sender",
         "receiver": None,
+        "contents": "Running shoes",
         "status": status,
         "pickup": pickup,
         "planned_from": planned_from,
@@ -88,6 +89,7 @@ def test_next_delivery_picks_earliest():
     sensor = DAONextDeliverySensor(coordinator, _entry())
     assert sensor.native_value == datetime(2099, 5, 1, 10, 0, tzinfo=UTC)
     assert sensor.extra_state_attributes["barcode"] == "B"
+    assert sensor.extra_state_attributes["contents"] == "Running shoes"
 
 
 def test_next_delivery_skips_a_window_that_has_ended():

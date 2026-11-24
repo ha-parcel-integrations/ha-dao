@@ -275,6 +275,7 @@ def normalize_tracking_parcel(
         "barcode": parcel.get("barcode") or code,
         "sender": parcel.get("sender_masked") or None,
         "receiver": recipient.get("name") or None,
+        "contents": None,
         "status": status,
         "raw_status": latest_event.get("description")
         or (event_description(latest) if latest else None),
