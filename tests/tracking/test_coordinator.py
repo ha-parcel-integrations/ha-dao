@@ -313,7 +313,9 @@ async def test_polling_resumes_while_a_parcel_is_in_flight(hass):
     assert coordinator.update_interval > timedelta(0)
 
 
-async def test_a_failed_poll_still_reschedules(hass):
+async def test_a_failed_poll_still_reschedules(hass, freezer):
+    # Midday: just after midnight the next poll is the 06:00 anchor, over 5 hours on.
+    freezer.move_to("2026-06-01 12:00:00-07:00")
     client = _client(side_effect=TimeoutError)
     entry = _entry()
     entry.add_to_hass(hass)
